@@ -1,5 +1,7 @@
 package online.vapcom.codewars.numbers
 
+import kotlin.math.truncate
+
 // https://www.codewars.com/kata/5aba780a6a176b029800041c/train/kotlin
 
 fun maxMultiple(divisor: Int, bound: Int): Int {
@@ -53,4 +55,28 @@ fun productFib(prod: Long): LongArray {
     }
 
     return longArrayOf(x, y, if(x * y == prod) 1 else 0)
+}
+
+/**
+ * Going to zero or to infinity?
+ *
+ * https://www.codewars.com/kata/55a29405bc7d2efaff00007c/train/kotlin
+ */
+fun going(n: Int): Double {
+
+    return when {
+        n <= 0 -> 0.0
+        n == 1 -> 1.0
+        else -> {
+            var sum = 1.0
+            var mult = 1.0
+
+            for (i in n downTo 2) {
+                mult *= i
+                sum += 1/mult
+            }
+
+            return truncate(sum*1E6)/1E6
+        }
+    }
 }
