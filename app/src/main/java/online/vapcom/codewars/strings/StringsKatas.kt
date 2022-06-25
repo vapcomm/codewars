@@ -1,7 +1,5 @@
 package online.vapcom.codewars.strings
 
-import androidx.compose.runtime.key
-
 /**
  * Two to One
  * https://www.codewars.com/kata/5656b6906de340bd1b0000ac/train/kotlin
@@ -101,3 +99,23 @@ fun longestRepetition(s: String): Pair<Char?,Int> {
     return if (count > maxCount) Pair(currentChar, count) else Pair(maxChar, maxCount)
 }
 
+/**
+ * Strip Comments
+ * https://www.codewars.com/kata/51c8e37cee245da6b40000bd/train/kotlin
+ *
+ *NOTE: for speed and lower memory consumption it's better to use state machine to process whole string in one pass.
+ */
+fun stripComments(input: String, markers: CharArray): String {
+
+    return input.split("\n").joinToString("\n") { str ->
+        var candidate = str
+
+        for (m in markers) {
+            val substr = str.substringBefore(m)
+            if (substr.length < candidate.length)
+                candidate = substr
+        }
+
+        candidate.trimEnd()
+    }
+}
