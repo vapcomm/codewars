@@ -25,17 +25,17 @@ fun maxMultiple(divisor: Int, bound: Int): Int {
 // https://www.codewars.com/kata/556deca17c58da83c00002db/train/kotlin
 
 fun tribonacci(signature: DoubleArray, n: Int): DoubleArray {
-    if(signature.size != 3 || n <= 0)
+    if (signature.size != 3 || n <= 0)
         return doubleArrayOf()
 
-    if(n <= signature.size)
+    if (n <= signature.size)
         return signature.copyOfRange(0, n)
 
     val result = DoubleArray(n)
     signature.forEachIndexed { index, d -> result[index] = d }
 
     for (i in signature.size until n) {
-        result[i] = result[i-1] + result[i-2] + result[i-3]
+        result[i] = result[i - 1] + result[i - 2] + result[i - 3]
     }
 
     return result
@@ -54,7 +54,7 @@ fun productFib(prod: Long): LongArray {
         y = n
     }
 
-    return longArrayOf(x, y, if(x * y == prod) 1 else 0)
+    return longArrayOf(x, y, if (x * y == prod) 1 else 0)
 }
 
 /**
@@ -73,10 +73,49 @@ fun going(n: Int): Double {
 
             for (i in n downTo 2) {
                 mult *= i
-                sum += 1/mult
+                sum += 1 / mult
             }
 
-            return truncate(sum*1E6)/1E6
+            return truncate(sum * 1E6) / 1E6
         }
     }
+}
+
+/**
+ * Maximum subarray sum
+ *
+ * https://www.codewars.com/kata/54521e9ec8e60bc4de000d6c/train/kotlin
+ */
+fun maxSequence(arr: List<Int>): Int {
+    if (arr.isEmpty())
+        return 0
+
+    // fast check all negative
+    var isAllNegative = true
+    for (a in arr) {
+        if (a >= 0) {
+            isAllNegative = false
+            break
+        }
+    }
+    if (isAllNegative) return 0
+
+    fun seqSum(start: Int, end: Int): Int {
+        var result = 0
+        for (i in start..end) {
+            result += arr[i]
+        }
+        return result
+    }
+
+    var maxSum = Int.MIN_VALUE
+    for (windowSize in 1..arr.size) {
+        for (i in 0..(arr.size - windowSize)) {
+            val sum = seqSum(i, i + windowSize - 1)
+            if (sum > maxSum)
+                maxSum = sum
+        }
+    }
+
+    return maxSum
 }
