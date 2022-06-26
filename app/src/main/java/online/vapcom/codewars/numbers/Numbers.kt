@@ -119,3 +119,21 @@ fun maxSequence(arr: List<Int>): Int {
 
     return maxSum
 }
+
+/**
+ * RGB To Hex Conversion
+ *
+ * https://www.codewars.com/kata/513e08acc600c94f01000001/train/kotlin
+ */
+fun rgb(r: Int, g: Int, b: Int): String {
+
+    fun clearColor(num: Int): Int {
+        return when {
+            num < 0 -> 0
+            num > 255 -> 255
+            else -> num
+        }
+    }
+
+    return String.format("%02X%02X%02X", clearColor(r), clearColor(g), clearColor(b))
+}
