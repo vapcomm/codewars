@@ -119,3 +119,71 @@ fun stripComments(input: String, markers: CharArray): String {
         candidate.trimEnd()
     }
 }
+
+/**
+ * The observed PIN
+ *
+ * https://www.codewars.com/kata/5263c6999e0f40dee200059d/train/kotlin
+ * ┌───┬───┬───┐
+ * │ 1 │ 2 │ 3 │
+ * ├───┼───┼───┤
+ * │ 4 │ 5 │ 6 │
+ * ├───┼───┼───┤
+ * │ 7 │ 8 │ 9 │
+ * └───┼───┼───┘
+ *     │ 0 │
+ *     └───┘
+ */
+fun getPINs(observed: String): List<String> {
+
+    if (observed.isBlank())
+        return emptyList()
+
+    val variants: Array<CharArray> = arrayOf(
+        charArrayOf('0', '8'),
+        charArrayOf('1', '2', '4'),
+        charArrayOf('2', '3', '5', '1'),
+        charArrayOf('3', '6', '2'),
+        charArrayOf('4', '1', '5', '7'),
+        charArrayOf('5', '2', '6', '8', '4'),
+        charArrayOf('6', '9', '5', '3'),
+        charArrayOf('7', '4', '8'),
+        charArrayOf('8', '5', '9', '0', '7'),
+        charArrayOf('9', '6', '8'),
+    )
+
+    val combinations: Array<CharArray> = Array(observed.length) { CharArray(0) }
+    observed.forEachIndexed { index, ch ->
+        if (ch.isDigit())
+            combinations[index] = variants[ch.code - '0'.code]
+        else return emptyList()
+    }
+
+    val counts = IntArray(observed.length)
+    val chars = CharArray(observed.length)
+    val result = mutableListOf<String>()
+
+    do {
+        // make current code combination
+        for (i in chars.indices) {
+            chars[i] = combinations[i][counts[i]]
+        }
+        result.add(String(chars))
+
+        // update combination
+        var overflow = false
+        for (i in counts.indices.reversed()) {
+            counts[i]++
+            if (counts[i] >= combinations[i].size) {
+                counts[i] = 0
+                overflow = true
+            }
+            else {
+                overflow = false
+                break
+            }
+        }
+    } while (!overflow)
+
+    return result
+}
