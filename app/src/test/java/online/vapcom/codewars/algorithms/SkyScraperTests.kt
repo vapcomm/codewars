@@ -1,7 +1,7 @@
 package online.vapcom.codewars.algorithms
 
 import online.vapcom.codewars.algorithms.Skyscrapers.columnPermutationMatchesGrid
-import online.vapcom.codewars.algorithms.Skyscrapers.copy
+import online.vapcom.codewars.algorithms.Skyscrapers.copyTo
 import online.vapcom.codewars.algorithms.Skyscrapers.getVisibleFromEnd
 import online.vapcom.codewars.algorithms.Skyscrapers.getVisibleFromStart
 import online.vapcom.codewars.algorithms.Skyscrapers.isValidColumns
@@ -100,14 +100,15 @@ class SkyScraperTests {
 
     @Test
     fun gridCopy() {
-        val zeros = arrayOf(
-            intArrayOf(0, 0, 0, 0),
-            intArrayOf(0, 0, 0, 0),
-            intArrayOf(0, 0, 0, 0),
-            intArrayOf(0, 0, 0, 0)
+        val twos = arrayOf(
+            intArrayOf(2, 2, 2, 2),
+            intArrayOf(2, 2, 2, 2),
+            intArrayOf(2, 2, 2, 2),
+            intArrayOf(2, 2, 2, 2)
         )
 
-        val ones = zeros.copy()
+        val ones = Array(4) { IntArray(4) }
+        twos.copyTo(ones)
         ones.forEach { it.fill(1) }
 
         assertEquals("1, 1, 1, 1\n" +
@@ -117,11 +118,11 @@ class SkyScraperTests {
             ones.joinToString("\n") { it.joinToString() })
 
         // zeros shouldn't change on deep copy
-        assertEquals("0, 0, 0, 0\n" +
-                "0, 0, 0, 0\n" +
-                "0, 0, 0, 0\n" +
-                "0, 0, 0, 0",
-            zeros.joinToString("\n") { it.joinToString() })
+        assertEquals("2, 2, 2, 2\n" +
+                "2, 2, 2, 2\n" +
+                "2, 2, 2, 2\n" +
+                "2, 2, 2, 2",
+            twos.joinToString("\n") { it.joinToString() })
     }
 
     @Test

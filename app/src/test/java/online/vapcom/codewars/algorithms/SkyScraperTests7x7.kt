@@ -29,7 +29,6 @@ class SkyScraperTests7x7 {
         assertArrayEquals(expected, actual)
     }
 
-    @Ignore
     @Test
     fun solvePuzzle_VeryHard3() {
         val clues = intArrayOf(
