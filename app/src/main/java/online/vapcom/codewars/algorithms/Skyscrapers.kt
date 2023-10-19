@@ -13,6 +13,26 @@ package online.vapcom.codewars.algorithms
  */
 object Skyscrapers {
 
+    /**
+     * Main function, start point of solution finding
+     */
+    fun solvePuzzle(clues: IntArray): Array<IntArray> {
+        println("== solvePuzzle: clues: ${clues.joinToString()}")
+        val hints = Hints(clues)
+
+        val cluesEngine = CluesEngine(hints)
+        cluesEngine.makeGridGenerators()
+
+        val result = cluesEngine.execute { grid, permutations, gridCache ->
+            findSolution(hints.emptyCluesColumns, 0, hints.emptyCluesRows, 0, grid, permutations, gridCache)
+        }
+
+        println("== solvePuzzle: findSolutionCount: $findSolutionCount, putColumnToGridCount: $putColumnToGridCount, putRowToGrid: $putRowToGrid")
+
+        return result.toArrays()
+    }
+
+
     data class PairClue(
         val index: Int,         // column or row index in grid
         val startClue: Int,     // start and end clue values
@@ -81,26 +101,182 @@ object Skyscrapers {
             return list
         }
 
-    }
+    } // Hints
 
     /**
-     * Main function, start point of solution finding
+     * Compact and fast grid storage.
+     * @param size grid size, it should be <= 8
      */
-    fun solvePuzzle(clues: IntArray): Array<IntArray> {
-        println("== solvePuzzle: clues: ${clues.joinToString()}")
-        val hints = Hints(clues)
+    class Grid(private val size: Int) {
 
-        val cluesEngine = CluesEngine(hints)
-        cluesEngine.makeGridGenerators()
+        companion object {
+            val EMPTY: Grid = Grid(0)
 
-        val result = cluesEngine.execute { grid, permutations, gridCache ->
-            findSolution(hints.emptyCluesColumns, 0, hints.emptyCluesRows, 0, grid, permutations, gridCache)
+            fun fromArrays(src: Array<IntArray>): Grid {
+                val g = Grid(src.size)
+                src.forEachIndexed { ri, row ->
+                    g.grid[ri] = packRowToInt(row)
+                }
+                return g
+            }
+
+            /**
+             * Pack row from IntArray to Int, last value to the least value tetrad
+             */
+            private fun packRowToInt(row: IntArray): Int {
+                var result = 0
+                row.forEach { result = (result shl 4) or (it and 0x0F) }
+                return result
+            }
         }
 
-        println("== solvePuzzle: findSolutionCount: $findSolutionCount, putColumnToGridCount: $putColumnToGridCount, putRowToGrid: $putRowToGrid")
+        val grid = IntArray(size)   // rows packed in Ints
 
-        return result
+        /**
+         * Return a deep copy of this grid
+         */
+        fun clone(): Grid {
+            val g = Grid(this.size)
+            grid.copyInto(g.grid)
+            return g
+        }
+
+        /**
+         * Return true if given column permutation matches grid and can be inserted into it
+         */
+        fun columnPermutationMatches(column: Int, permutation: Int): Boolean {
+            val maxIndex = size - 1
+            val shift = 4 * (size - 1 - column)
+            for (row in 0 until size) {
+                val cell = (grid[row] shr shift) and 0x0F
+                if (cell != 0 && cell != (permutation shr (4 * (maxIndex - row))) and 0x0F)
+                    return false
+            }
+
+            return true
+        }
+
+        /**
+         * Copy this grid to dst and put permutation on column
+         */
+        fun putColumnToGrid(column: Int, permutation: Int, dst: Grid) {
+//+++
+            putColumnToGridCount++
+//+++
+            val shift = 4 * (size - 1 - column)
+            val maxIndex = size - 1
+            for (row in 0 until size) {
+                val p = (((permutation shr (4 * (maxIndex - row))) and 0x0F) shl (4 * (maxIndex - column)))
+                dst.grid[row] = (grid[row] and (0x0F shl shift).inv()) or p
+            }
+        }
+
+        fun packColumnToInt(column: Int): Int {
+
+            val shift = 4 * (size - 1 - column)
+            var result = 0
+
+            for (row in 0 until size) {
+                result = (result shl 4) or ((grid[row] shr shift) and 0xF)
+            }
+            return result
+        }
+
+        fun getRow(row: Int): Int = grid[row]
+
+        /**
+         * Return true if given row permutation matches grid and can be inserted into it
+         */
+        fun rowPermutationMatches(rowIndex: Int, permutation: Int): Boolean {
+            val row = grid[rowIndex]
+            //TODO: make wise bits check without loop and shifts
+            for (i in 0 until size) {
+                val cell = (row shr (4 * i)) and 0x0F
+                if (cell != 0 && cell != (permutation shr (4 * i)) and 0x0F)
+                    return false
+            }
+
+            return true
+        }
+
+        fun putRowToGrid(row: Int, permutation: Int, dst: Grid) {
+//+++
+            putRowToGrid++
+//+++
+            grid.copyInto(dst.grid)
+            dst.grid[row] = permutation
+        }
+
+        /**
+         * Check all grid's rows have valid possible permutation values,
+         * i.e. all non-zero numbers in row should appear only once
+         */
+        fun isPossibleValidRows(): Boolean {
+            grid.forEach { row ->
+                var bits = 0
+                for (i in 0 until size) {
+                    val cell = (row shr (4 * i)) and 0x0F
+                    if (cell > 0) { // skip zeros
+                        val bit = 1 shl cell
+                        if (bits and bit != 0) { // already have this number
+                            return false
+                        } else bits = bits or bit
+                    }
+                }
+            }
+
+            return true
+        }
+
+        /**
+         * Strong correctness check of all columns in grid (without zeros)
+         */
+        fun isValidColumns(): Boolean {
+            for (column in 0 until size) {
+                var bits = 0
+                grid.forEach { row ->
+                    val cell = (row shr (4 * (size - 1 - column))) and 0x0F
+                    if (cell == 0)
+                        return false
+
+                    val bit = 1 shl cell
+                    if (bits and bit != 0) { // already have this number
+                        return false
+                    } else bits = bits or bit
+                }
+            }
+            
+            return true
+        }
+
+        /**
+         * Return true if it is a final solution, all columns and rows have correct permutations
+         */
+        fun checkSolution(): Boolean {
+            println("====== CHECK:\n${toLogString()}")
+            return if (isValidColumns() && isPossibleValidRows()) {
+                println("====== FOUND SOLUTION!")
+                true
+            } else false
+        }
+
+        /**
+         * Convert internal grid to required result format
+         */
+        fun toArrays(): Array<IntArray> {
+            return Array(size) { r ->
+                IntArray(size) { c ->
+                    (grid[r] shr (4 * (size - 1 - c))) and 0x0F
+                }
+            }
+        }
+
+//+++
+        @OptIn(ExperimentalStdlibApi::class)
+        fun toLogString(): String = grid.joinToString("\n") { it.toHexString() }
+//+++
     }
+
 
     /**
      * First stage of solution, generates grids based on given clues
@@ -111,18 +287,18 @@ object Skyscrapers {
          * Base class for a first stage grid generators
          */
         abstract class GridGenerator(gridSize: Int) {
-            protected abstract val perms: List<Long>
+            protected abstract val perms: List<Int>
             fun permutationsSize(): Int = perms.size
 
             protected var currentPermutation = 0
             // buffer for new generated grids to not to allocate them during grid compose
-            val nextGrid = Array(gridSize) { IntArray(gridSize) }
+            val nextGrid = Grid(gridSize)
 
             fun reset() {
                 currentPermutation = 0
             }
 
-            fun hasNextGrid(startGrid: Array<IntArray>): Boolean {
+            fun hasNextGrid(startGrid: Grid): Boolean {
                 //TODO: change linear search to something faster
                 while (currentPermutation < perms.size) {
                     if (isCurrentPermMatchGrid(startGrid)) {
@@ -133,33 +309,33 @@ object Skyscrapers {
                 return false
             }
 
-            abstract fun makeGrid(startGrid: Array<IntArray>, nextGrid: Array<IntArray>)
-            abstract fun isCurrentPermMatchGrid(startGrid: Array<IntArray>): Boolean
+            abstract fun makeGrid(startGrid: Grid, nextGrid: Grid)
+            abstract fun isCurrentPermMatchGrid(startGrid: Grid): Boolean
         }
 
         /**
          * Base class for pair clues grid generators
          */
         abstract inner class PairClueGridGenerator(protected val pairClue: PairClue) : GridGenerator(hints.gridSize) {
-            override val perms = permutations.filterIndexed { index, p ->
+            override val perms = permutations.filterIndexed { index, _ ->
                 startVisible[index] == pairClue.startClue && endVisible[index] == pairClue.endClue
             }
         }
 
         inner class PairColumnGridGenerator(pairClue: PairClue) : PairClueGridGenerator(pairClue) {
-            override fun isCurrentPermMatchGrid(startGrid: Array<IntArray>): Boolean =
-                columnPermutationMatchesGrid(pairClue.index, perms[currentPermutation], startGrid)
+            override fun isCurrentPermMatchGrid(startGrid: Grid): Boolean =
+                startGrid.columnPermutationMatches(pairClue.index, perms[currentPermutation])
 
-            override fun makeGrid(startGrid: Array<IntArray>, nextGrid: Array<IntArray>) =
-                putColumnToGrid(pairClue.index, perms[currentPermutation++], startGrid, nextGrid)
+            override fun makeGrid(startGrid: Grid, nextGrid: Grid) =
+                startGrid.putColumnToGrid(pairClue.index, perms[currentPermutation++], nextGrid)
         }
 
         inner class PairRowGridGenerator(pairClue: PairClue) : PairClueGridGenerator(pairClue) {
-            override fun isCurrentPermMatchGrid(startGrid: Array<IntArray>): Boolean =
-                rowPermutationMatchesGrid(pairClue.index, perms[currentPermutation], startGrid)
+            override fun isCurrentPermMatchGrid(startGrid: Grid): Boolean =
+                startGrid.rowPermutationMatches(pairClue.index, perms[currentPermutation])
 
-            override fun makeGrid(startGrid: Array<IntArray>, nextGrid: Array<IntArray>) =
-                putRowToGrid(pairClue.index, perms[currentPermutation++], startGrid, nextGrid)
+            override fun makeGrid(startGrid: Grid, nextGrid: Grid) =
+                startGrid.putRowToGrid(pairClue.index, perms[currentPermutation++], nextGrid)
         }
 
         /**
@@ -168,29 +344,29 @@ object Skyscrapers {
         abstract inner class SingleClueGridGenerator(private val singleClue: SingleClue) : GridGenerator(hints.gridSize) {
             private val visible = if (singleClue.isStart) startVisible else endVisible
 
-            override val perms = permutations.filterIndexed { index, p ->
+            override val perms = permutations.filterIndexed { index, _ ->
                 visible[index] == singleClue.clue
             }
         }
 
         inner class SingleColumnGridGenerator(private val singleClue: SingleClue) : SingleClueGridGenerator(singleClue) {
-            override fun isCurrentPermMatchGrid(startGrid: Array<IntArray>): Boolean =
-                columnPermutationMatchesGrid(singleClue.index, perms[currentPermutation], startGrid)
+            override fun isCurrentPermMatchGrid(startGrid: Grid): Boolean =
+                startGrid.columnPermutationMatches(singleClue.index, perms[currentPermutation])
 
-            override fun makeGrid(startGrid: Array<IntArray>, nextGrid: Array<IntArray>) =
-                putColumnToGrid(singleClue.index, perms[currentPermutation++], startGrid, nextGrid)
+            override fun makeGrid(startGrid: Grid, nextGrid: Grid) =
+                startGrid.putColumnToGrid(singleClue.index, perms[currentPermutation++], nextGrid)
         }
 
         inner class SingleRowGridGenerator(private val singleClue: SingleClue) : SingleClueGridGenerator(singleClue) {
-            override fun isCurrentPermMatchGrid(startGrid: Array<IntArray>): Boolean =
-                rowPermutationMatchesGrid(singleClue.index, perms[currentPermutation], startGrid)
+            override fun isCurrentPermMatchGrid(startGrid: Grid): Boolean =
+                startGrid.rowPermutationMatches(singleClue.index, perms[currentPermutation])
 
-            override fun makeGrid(startGrid: Array<IntArray>, nextGrid: Array<IntArray>) =
-                putRowToGrid(singleClue.index, perms[currentPermutation++], startGrid, nextGrid)
+            override fun makeGrid(startGrid: Grid, nextGrid: Grid) =
+                startGrid.putRowToGrid(singleClue.index, perms[currentPermutation++], nextGrid)
         }
 
         // generate all possible columns and rows permutations of given grid size
-        val permutations = Array(hints.gridSize) { it + 1 }.toList().permutations().map { packPermutationToLong(it) }.sorted()
+        val permutations = Array(hints.gridSize) { it + 1 }.toList().permutations().map { packPermutationToInt(it) }.sorted()
 
         // Count visible skyscrapers for all permutations:
         // Start | Permutation | End:  4 | 1, 2, 3, 4 | 1
@@ -200,11 +376,7 @@ object Skyscrapers {
         private val gridGenerators = ArrayList<GridGenerator>()
 
         // pre allocated grids for findSolution()
-        private val gridsCache = Array<Array<Array<IntArray>>>(hints.gridSize) {
-            Array(hints.gridSize) {
-                Array(hints.gridSize) { IntArray(hints.gridSize)}
-            }
-        }
+        private val gridsCache = Array(hints.gridSize) { Array(hints.gridSize) { Grid(hints.gridSize) } }
 
         /**
          * Make generators list based on clues. Pair clues go first.
@@ -230,16 +402,14 @@ object Skyscrapers {
         /**
          * Compose first stage girds based on given clues and call findSolutionBlock() to find final solution
          */
-        fun execute(
-            findSolutionBlock: (grid: Array<IntArray>, permutations: List<Long>, gridsCache: Array<Array<Array<IntArray>>>) -> Pair<Boolean, Array<IntArray>>
-        ): Array<IntArray> {
+        fun execute(findSolutionBlock: (grid: Grid, permutations: List<Int>, gridsCache: Array<Array<Grid>>) -> Pair<Boolean, Grid>): Grid {
             println("## execute: generators: ")
             gridGenerators.forEachIndexed { index, g ->
                 println("#### gen[$index]: perms: ${g.permutationsSize()}")
             }
             println("#### total clues permutations: ${gridGenerators.fold(1L) { mult, ps -> mult * ps.permutationsSize().toLong()} }")
 
-            val emptyGrid = Array(hints.gridSize) { IntArray(hints.gridSize) }
+            val emptyGrid = Grid(hints.gridSize)
 
             if (gridGenerators.isEmpty()) {
                 // no clues at all, do our best
@@ -261,8 +431,8 @@ object Skyscrapers {
         /**
          * Recursively compose grid from all clue grid generators and try it with solution finder block
          */
-        private fun composeGrid(genIndex: Int, startGrid: Array<IntArray>,
-                                finderBlock: (grid: Array<IntArray>) -> Pair<Boolean, Array<IntArray>>): Pair<Boolean, Array<IntArray>> {
+        private fun composeGrid(genIndex: Int, startGrid: Grid,
+                                finderBlock: (grid: Grid) -> Pair<Boolean, Grid>): Pair<Boolean, Grid> {
 //            println("###### composeGrid: gen[$genIndex]: startGrid:\n${startGrid.toLogString()}")
 //            println("###### composeGrid: gen[$genIndex]")
 
@@ -281,8 +451,7 @@ object Skyscrapers {
                 val res = composeGrid(genIndex + 1, generator.nextGrid, finderBlock)
                 if (res.first) return res
             }
-
-            return Pair(false, emptyArray())
+            return Pair(false, Grid(0))     //TODO: optimize Pair creation, use constant
         }
 
     } // CluesEngine
@@ -295,8 +464,8 @@ object Skyscrapers {
      */
     private fun findSolution(
         emptyColumns: List<Int>, columnOffset: Int, emptyRows: List<Int>, rowOffset: Int,
-        startGrid: Array<IntArray>, permutations: List<Long>, gridCache: Array<Array<Array<IntArray>>>
-    ): Pair<Boolean, Array<IntArray>> {
+        startGrid: Grid, permutations: List<Int>, gridCache: Array<Array<Grid>>
+    ): Pair<Boolean, Grid> {
 //        println("\n++++ findSolution: emptyColumns: $emptyColumns, coff:$columnOffset, emptyRows: $emptyRows, roff: $rowOffset," +
 //                " start grid:\n${startGrid.toLogString()}")
 
@@ -304,13 +473,13 @@ object Skyscrapers {
 
         if (columnOffset < emptyColumns.size) { // columns cycle
 //            println("++++++ findSolution: try column ${emptyColumns[columnOffset]}")
-            val columnMask = packColumnToLong(emptyColumns[columnOffset], startGrid)
+            val columnMask = startGrid.packColumnToInt(emptyColumns[columnOffset])
             //TODO: change linear search to the faster method
             permutations.forEach { perm ->
                 if (perm and columnMask == columnMask) { // possible column permutation
                     val nextGrid = gridCache[rowOffset][columnOffset]
-                    putColumnToGrid(emptyColumns[columnOffset], perm, startGrid, nextGrid)
-                    if (isPossibleValidRows(nextGrid)) {
+                    startGrid.putColumnToGrid(emptyColumns[columnOffset], perm, nextGrid)
+                    if (nextGrid.isPossibleValidRows()) {
                         val res = findSolution(emptyColumns, columnOffset + 1, emptyRows, rowOffset, nextGrid, permutations, gridCache)
                         if (res.first)
                             return res
@@ -322,16 +491,15 @@ object Skyscrapers {
 //                println("++++++ findSolution: try row ${emptyRows[rowOffset]}")
 
                 // empty columns may already fill the entire grid, check it
-                val check = checkSolution(startGrid)
-                if (check.first)
-                    return check
+                if (startGrid.checkSolution())
+                    return Pair(true, startGrid)
 
-                val rowMask = packRowToLong(startGrid[emptyRows[rowOffset]])
+                val rowMask = startGrid.getRow(emptyRows[rowOffset])
                 //TODO: change linear search to the faster method
                 permutations.forEach { perm ->
                     if (perm and rowMask == rowMask) {
                         val nextGrid = gridCache[rowOffset][columnOffset]
-                        putRowToGrid(emptyRows[rowOffset], perm, startGrid, nextGrid)
+                        startGrid.putRowToGrid(emptyRows[rowOffset], perm, nextGrid)
                         val res = findSolution(emptyColumns, columnOffset, emptyRows, rowOffset + 1, nextGrid, permutations, gridCache)
                         if (res.first)
                             return res
@@ -339,91 +507,22 @@ object Skyscrapers {
                 }
             } else {
                 // it was last empty row, check the final variant
-                return checkSolution(startGrid)
+                return if (startGrid.checkSolution()) return Pair(true, startGrid) else Pair(false, Grid.EMPTY)
             }
         }
 
         //TODO: remove object allocation, return Int with column and row and grid in cache, or -1 if nothing found
-        return Pair(false, emptyArray())
+        return Pair(false, Grid.EMPTY)
     }
 
     /**
-     * Check all grid's rows have valid possible permutation values,
-     * i.e. all non-zero numbers in row should appear only once
-     */
-    internal fun isPossibleValidRows(grid: Array<IntArray>): Boolean {
-        grid.forEach { row ->
-            var bits = 0
-            row.forEach { v ->
-                if (v > 0) {    // skip zeros
-                    val bit = 1 shl v
-                    if (bits and bit != 0) { // already have this number
-                        return false
-                    } else bits = bits or bit
-                }
-            }
-        }
-
-        return true
-    }
-
-    /**
-     * Strong check correctness of all columns in grid (without zeros)
-     */
-    internal fun isValidColumns(grid: Array<IntArray>): Boolean {
-        for (i in grid[0].indices) {
-            var bits = 0
-            grid.forEach { row ->
-                if (row[i] == 0)
-                    return false
-
-                val bit = 1 shl row[i]
-                if (bits and bit != 0) { // already have this number
-                    return false
-                } else bits = bits or bit
-            }
-        }
-
-        return true
-    }
-
-    /**
-     * Return true and given grid if it is a final solution, all columns and rows have correct permutations
-     */
-    private fun checkSolution(grid: Array<IntArray>): Pair<Boolean, Array<IntArray>> {
-        println("====== CHECK:\n${grid.toLogString()}")
-        return if (isValidColumns(grid) && isPossibleValidRows(grid)) {
-            println("====== FOUND SOLUTION!")
-            Pair(true, grid)
-        } else Pair(false, emptyArray())
-    }
-
-    /**
-     * Pack one permutation array to Long, last value to the least value byte
+     * Pack one permutation array to Int, last value to the least value byte
      *
      * NOTE: permutation.size should be <= 8
      */
-    fun packPermutationToLong(permutation: List<Int>): Long {
-        var result = 0L
-        permutation.forEach { result = (result shl 8) or (it.toLong() and 0xFFL) }
-        return result
-    }
-
-    /**
-     * Pack grid's column to Long, last value to the least value byte
-     */
-    private fun packColumnToLong(column: Int, grid: Array<IntArray>): Long {
-        var result = 0L
-        grid.forEach { result = (result shl 8) or (it[column].toLong() and 0xFFL) }
-        return result
-    }
-
-    /**
-     * Pack row to Long, last value to the least value byte
-     */
-    private fun packRowToLong(row: IntArray): Long {
-        var result = 0L
-        row.forEach { result = (result shl 8) or (it.toLong() and 0xFFL) }
+    fun packPermutationToInt(permutation: List<Int>): Int {
+        var result = 0
+        permutation.forEach { result = (result shl 4) or (it and 0x0F) }
         return result
     }
 
@@ -457,19 +556,19 @@ object Skyscrapers {
     /**
      * Return list of visible skyscrapers for each permutation from it's start
      */
-    internal fun getVisibleFromStart(permutations: List<Long>): List<Int> = getVisibleFrom(permutations, 7 downTo 0)
+    internal fun getVisibleFromStart(permutations: List<Int>): List<Int> = getVisibleFrom(permutations, 7 downTo 0)
 
     /**
      * Return list of visible skyscrapers for each permutation from it's end
      */
-    internal fun getVisibleFromEnd(permutations: List<Long>): List<Int> = getVisibleFrom(permutations, 0..7)
+    internal fun getVisibleFromEnd(permutations: List<Int>): List<Int> = getVisibleFrom(permutations, 0..7)
 
-    private fun getVisibleFrom(permutations: List<Long>, interval: IntProgression): List<Int> {
+    private fun getVisibleFrom(permutations: List<Int>, interval: IntProgression): List<Int> {
         return permutations.map { p ->
             var visible = 0
             var maxHeight = 0
             for (i in interval) {
-                val height = ((p shr (i * 8)) and 0xFF).toInt()
+                val height = ((p shr (4 * i)) and 0xF)
                 if (height > maxHeight) {
                     maxHeight = height
                     visible++
@@ -480,63 +579,10 @@ object Skyscrapers {
         }
     }
 
+//+++
     var putColumnToGridCount = 0L
     var putRowToGrid = 0L
-
-    private fun putColumnToGrid(column: Int, permutation: Long, src: Array<IntArray>, dst: Array<IntArray>) {
-        putColumnToGridCount++
-
-        src.copyTo(dst)
-        val maxIndex = dst.size - 1
-        for (i in dst.indices) {
-            dst[i][column] = (permutation shr (8 * (maxIndex - i))).toInt() and 0xFF
-        }
-    }
-
-    private fun putRowToGrid(row: Int, permutation: Long, src: Array<IntArray>, dst: Array<IntArray>) {
-        putRowToGrid++
-
-        src.copyTo(dst)
-        val maxIndex = dst.size - 1
-        for (i in dst.indices) {
-            dst[row][i] = (permutation shr (8 * (maxIndex - i))).toInt() and 0xFF
-        }
-    }
-
-    /**
-     * Deep copy of grid
-     */
-    internal fun Array<IntArray>.copyTo(dst: Array<IntArray>) {
-        this.forEachIndexed { index, ints ->
-            ints.copyInto(dst[index])
-        }
-    }
-
-    //fun Array<IntArray>.copy(): Array<IntArray> = Array(this.size) { this[it].copyOf() }
-
-    /**
-     * Return true if given row permutation matches given grid and can be inserted into it
-     */
-    internal fun rowPermutationMatchesGrid(row: Int, permutation: Long, grid: Array<IntArray>): Boolean {
-        val maxIndex = grid[row].size - 1
-        grid[row].forEachIndexed { index, i ->
-            if (i != 0 && i != ((permutation shr (8 * (maxIndex - index))) and 0xFF).toInt())
-                return false
-        }
-        return true
-    }
-
-    /**
-     * Return true if given column permutation matches given grid and can be inserted into it
-     */
-    internal fun columnPermutationMatchesGrid(column: Int, permutation: Long, grid: Array<IntArray>): Boolean {
-        val maxIndex = grid.size - 1
-        grid.forEachIndexed { index, row ->
-            if (row[column] != 0 && row[column] != ((permutation shr (8 * (maxIndex - index))) and 0xFF).toInt())
-                return false
-        }
-        return true
-    }
+//+++
 
 }
 
