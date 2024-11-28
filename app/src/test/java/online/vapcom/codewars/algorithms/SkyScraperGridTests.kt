@@ -305,4 +305,110 @@ class SkyScraperGridTests {
             grid.toArrays().toLogString())
     }
 
-}
+    @Test
+    fun rowBits() {
+        val validFull = Grid.fromArrays(
+            arrayOf(
+                intArrayOf(2, 1, 4, 3),
+                intArrayOf(3, 4, 1, 2),
+                intArrayOf(4, 2, 3, 1),
+                intArrayOf(1, 3, 2, 4)
+            )
+        )
+
+        assertEquals(0b11110, validFull.getRowValuesMask(0))
+        assertEquals(0b11110, validFull.getRowValuesMask(1))
+        assertEquals(0b11110, validFull.getRowValuesMask(2))
+        assertEquals(0b11110, validFull.getRowValuesMask(3))
+
+        val validNotFull = Grid.fromArrays(
+            arrayOf(
+                intArrayOf(2, 1, 0, 3),
+                intArrayOf(3, 4, 0, 2),
+                intArrayOf(4, 0, 3, 1),
+                intArrayOf(0, 3, 2, 4)
+            )
+        )
+        assertEquals(0b01110, validNotFull.getRowValuesMask(0))
+        assertEquals(0b11100, validNotFull.getRowValuesMask(1))
+        assertEquals(0b11010, validNotFull.getRowValuesMask(2))
+        assertEquals(0b11100, validNotFull.getRowValuesMask(3))
+
+        val invalid = Grid.fromArrays(
+            arrayOf(
+                intArrayOf(1, 2, 4, 1),
+                intArrayOf(2, 2, 2, 2),
+                intArrayOf(3, 4, 4, 3),
+                intArrayOf(0, 0, 0, 0)
+            )
+        )
+
+        assertEquals(0b10110, invalid.getRowValuesMask(0))
+        assertEquals(0b00100, invalid.getRowValuesMask(1))
+        assertEquals(0b11000, invalid.getRowValuesMask(2))
+        assertEquals(0b00000, invalid.getRowValuesMask(3))
+    }
+
+    @Test
+    fun columnBits() {
+        val validFull = Grid.fromArrays(
+            arrayOf(
+                intArrayOf(2, 1, 4, 3),
+                intArrayOf(3, 4, 1, 2),
+                intArrayOf(4, 2, 3, 1),
+                intArrayOf(1, 3, 2, 4)
+            )
+        )
+
+        assertEquals(0b11110, validFull.getColumnValuesMask(0))
+        assertEquals(0b11110, validFull.getColumnValuesMask(1))
+        assertEquals(0b11110, validFull.getColumnValuesMask(2))
+        assertEquals(0b11110, validFull.getColumnValuesMask(3))
+
+        val validNotFull = Grid.fromArrays(
+            arrayOf(
+                intArrayOf(2, 1, 4, 0),
+                intArrayOf(3, 4, 0, 2),
+                intArrayOf(4, 0, 3, 1),
+                intArrayOf(0, 3, 2, 0)
+            )
+        )
+        assertEquals(0b11100, validNotFull.getColumnValuesMask(0))
+        assertEquals(0b11010, validNotFull.getColumnValuesMask(1))
+        assertEquals(0b11100, validNotFull.getColumnValuesMask(2))
+        assertEquals(0b00110, validNotFull.getColumnValuesMask(3))
+
+        val invalid = Grid.fromArrays(
+            arrayOf(
+                intArrayOf(1, 2, 2, 0),
+                intArrayOf(2, 2, 2, 0),
+                intArrayOf(4, 4, 2, 0),
+                intArrayOf(1, 3, 2, 0)
+            )
+        )
+
+        assertEquals(0b10110, invalid.getColumnValuesMask(0))
+        assertEquals(0b11100, invalid.getColumnValuesMask(1))
+        assertEquals(0b00100, invalid.getColumnValuesMask(2))
+        assertEquals(0b00000, invalid.getColumnValuesMask(3))
+    }
+
+    @Test
+    fun columnNotFull() {
+        val grid = Grid.fromArrays(
+            arrayOf(
+                intArrayOf(2, 0, 4, 0),
+                intArrayOf(3, 4, 0, 0),
+                intArrayOf(4, 2, 3, 0),
+                intArrayOf(1, 3, 2, 0)
+            )
+        )
+
+        assertFalse(grid.columnNotFull(0))
+
+        assertTrue(grid.columnNotFull(1))
+        assertTrue(grid.columnNotFull(2))
+        assertTrue(grid.columnNotFull(3))
+    }
+
+    }

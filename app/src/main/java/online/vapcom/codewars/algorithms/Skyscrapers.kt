@@ -27,7 +27,9 @@ object Skyscrapers {
             findSolution(hints.emptyCluesColumns, 0, hints.emptyCluesRows, 0, grid, permutations, gridCache)
         }
 
-        println("== solvePuzzle: findSolutionCount: $findSolutionCount, putColumnToGridCount: $putColumnToGridCount, putRowToGrid: $putRowToGrid")
+        println("== solvePuzzle: permutations: ${cluesEngine.permutations.size}, findSolutionCount: $findSolutionCount,\n" +
+                " putColumnToGridCount: $putColumnToGridCount, isPossibleValidRowsCounter: $isPossibleValidRowsCounter," +
+                " putRowToGrid: $putRowToGrid")
 
         return result.toArrays()
     }
@@ -172,7 +174,6 @@ object Skyscrapers {
         }
 
         fun packColumnToInt(column: Int): Int {
-
             val shift = 4 * (size - 1 - column)
             var result = 0
 
@@ -212,6 +213,9 @@ object Skyscrapers {
          * i.e. all non-zero numbers in row should appear only once
          */
         fun isPossibleValidRows(): Boolean {
+//+++
+            isPossibleValidRowsCounter++
+//+++
             grid.forEach { row ->
                 var bits = 0
                 for (i in 0 until size) {
@@ -253,7 +257,7 @@ object Skyscrapers {
          * Return true if it is a final solution, all columns and rows have correct permutations
          */
         fun checkSolution(): Boolean {
-            println("====== CHECK:\n${toLogString()}")
+//            println("====== CHECK:\n${toLogString()}")
             return if (isValidColumns() && isPossibleValidRows()) {
                 println("====== FOUND SOLUTION!")
                 true
@@ -269,6 +273,51 @@ object Skyscrapers {
                     (grid[r] shr (4 * (size - 1 - c))) and 0x0F
                 }
             }
+        }
+
+        /**
+         * Return value with bits set to 1 if column has this number.
+         *
+         * Example: 1234 -> 11110b, 1030 -> 1010b
+         */
+        fun getColumnValuesMask(columnIndex: Int): Int {
+            val shift = 4 * (size - 1 - columnIndex)
+            var bits = 0
+            for (row in 0 until size) {
+                val cell = ((grid[row] shr shift) and 0xF)
+                if (cell > 0)
+                    bits = bits or (1 shl cell)
+            }
+            return bits
+        }
+
+        /**
+         * Return value with bits set to 1 if row has this number.
+         *
+         * Example: 1234 -> 11110b, 1030 -> 1010b
+         */
+        fun getRowValuesMask(rowIndex: Int): Int {
+            val row = grid[rowIndex]
+            var bits = 0
+            for (i in 0 until grid.size) {
+                val cell = (row shr (4 * i)) and 0x0F
+                if (cell > 0)
+                    bits = bits or (1 shl cell)
+            }
+            return bits
+        }
+
+        /**
+         * Return true if column contains at least one zero
+         */
+        fun columnNotFull(columnIndex: Int): Boolean {
+            val shift = 4 * (size - 1 - columnIndex)
+            for (row in 0 until size) {
+                val cell = ((grid[row] shr shift) and 0xF)
+                if (cell == 0)
+                    return true
+            }
+            return false
         }
 
 //+++
@@ -418,7 +467,8 @@ object Skyscrapers {
             }
 
             val res = composeGrid(0, emptyGrid) { grid ->
-                findSolutionBlock(grid, permutations, gridsCache)
+                //findSolutionBlock(grid, permutations, gridsCache)
+                findSolutionByZeros(grid, 0)
             }
 
             println("## execute: compose count: $composeCount")
@@ -426,13 +476,83 @@ object Skyscrapers {
             return if (res.first) res.second else emptyGrid
         }
 
+        private val oneInverted = 1.inv()
+        private val sizeMask = (-1 shl (hints.gridSize + 1)).inv()
+
+        @OptIn(ExperimentalStdlibApi::class)
+        fun findSolutionByZeros(startGrid: Grid, c: Int): Pair<Boolean, Grid> {
+            findSolutionCount++
+
+            if (c >= startGrid.grid.size) // all columns passed, check solution
+                return if (startGrid.checkSolution()) Pair(true, startGrid) else gridNotFound
+
+            val columnBits = startGrid.getColumnValuesMask(c)
+            val column = startGrid.packColumnToInt(c)
+//            println("++++ findSolutionByZeros: column[$c]: ${column.toHexString()}, startGrid:\n${startGrid.toLogString()}")
+
+            val maxIndex = startGrid.grid.size - 1
+            for (r in 0 until startGrid.grid.size) {
+                val cell = (column shr (4 * (maxIndex - r))) and 0x0F
+                if (cell == 0) {
+                    // get possible cell values from row r
+                    val rowBits = startGrid.getRowValuesMask(r)
+                    val bothUnknownBits = columnBits.inv() and rowBits.inv() and oneInverted and sizeMask
+//                    println("++++ findSolutionByZeros: [$r][$c] columnBits: ${columnBits.toHexString()}, rowBits: ${rowBits.toHexString()}," +
+//                            " both: ${bothUnknownBits.toHexString()}, sizeMask: ${sizeMask.toHexString()}")
+
+                    if (bothUnknownBits == 0) {
+                        // can't find solution for this cell, skip variant
+//                        println("++++ findSolutionByZeros: bothUnknownBits ZERO, skip variant")
+                        return gridNotFound
+                    }
+
+                    val cellVariants = cellVariantsFromBits(bothUnknownBits)
+//                    println("++++ findSolutionByZeros: [$r][$c] cellVariants: $cellVariants")
+
+                    val lShift = 4 * (maxIndex - r)
+                    val maskedColumn = column and ((0x0F shl lShift).inv())
+                    cellVariants.forEach { cv ->
+                        val newColumn = maskedColumn or (cv shl lShift)
+
+//                        println("++++ findSolutionByZeros: [$r][$c] try variant: $cv, newColumn: ${newColumn.toHexString()}, gridsCache[$r][$c]")
+
+                        val nextGrid = gridsCache[r][c]
+                        startGrid.putColumnToGrid(c, newColumn, nextGrid)
+                        val res = findSolutionByZeros(nextGrid, c)
+                        if (res.first) return res
+                    }
+                }
+            }
+
+            if (startGrid.columnNotFull(c)) {
+                // column[$c] not full after row loop, skip
+//                println("++++ findSolutionByZeros: column[$c] not full after row loop, skip")
+                return gridNotFound
+            }
+
+//            println("++++ findSolutionByZeros: column[$c] filled, switch to next")
+
+            // this column doesn't contain any zeros, proceed with next
+            return findSolutionByZeros(startGrid, c + 1)
+        }
+
+        private fun cellVariantsFromBits(unknownBits: Int): ArrayList<Int> {
+            val result = ArrayList<Int>()
+            var bits = unknownBits shr 1    // skip zero's bit
+            for (i in 1..hints.gridSize) {
+                if (bits and 1 != 0)
+                    result.add(i)
+                bits = bits shr 1
+            }
+            return result
+        }
+
         private var composeCount = 0L
 
         /**
          * Recursively compose grid from all clue grid generators and try it with solution finder block
          */
-        private fun composeGrid(genIndex: Int, startGrid: Grid,
-                                finderBlock: (grid: Grid) -> Pair<Boolean, Grid>): Pair<Boolean, Grid> {
+        private fun composeGrid(genIndex: Int, startGrid: Grid, finderBlock: (grid: Grid) -> Pair<Boolean, Grid>): Pair<Boolean, Grid> {
 //            println("###### composeGrid: gen[$genIndex]: startGrid:\n${startGrid.toLogString()}")
 //            println("###### composeGrid: gen[$genIndex]")
 
@@ -451,13 +571,15 @@ object Skyscrapers {
                 val res = composeGrid(genIndex + 1, generator.nextGrid, finderBlock)
                 if (res.first) return res
             }
-            return Pair(false, Grid(0))     //TODO: optimize Pair creation, use constant
+            return gridNotFound
         }
 
     } // CluesEngine
 
 
     var findSolutionCount = 0L
+
+    private val gridNotFound = Pair(false, Grid.EMPTY)
 
     /**
      * Second iteration does recursive search of columns and rows with no clues from a given startGrid.
@@ -466,13 +588,13 @@ object Skyscrapers {
         emptyColumns: List<Int>, columnOffset: Int, emptyRows: List<Int>, rowOffset: Int,
         startGrid: Grid, permutations: List<Int>, gridCache: Array<Array<Grid>>
     ): Pair<Boolean, Grid> {
-//        println("\n++++ findSolution: emptyColumns: $emptyColumns, coff:$columnOffset, emptyRows: $emptyRows, roff: $rowOffset," +
-//                " start grid:\n${startGrid.toLogString()}")
+        println("\n++++ findSolution: emptyColumns: $emptyColumns, coff:$columnOffset, emptyRows: $emptyRows, roff: $rowOffset," +
+                " start grid:\n${startGrid.toLogString()}")
 
         findSolutionCount++
 
         if (columnOffset < emptyColumns.size) { // columns cycle
-//            println("++++++ findSolution: try column ${emptyColumns[columnOffset]}")
+            println("++++++ findSolution: try column ${emptyColumns[columnOffset]}")
             val columnMask = startGrid.packColumnToInt(emptyColumns[columnOffset])
             //TODO: change linear search to the faster method
             permutations.forEach { perm ->
@@ -488,7 +610,7 @@ object Skyscrapers {
             }
         } else {
             if (rowOffset < emptyRows.size) { // rows cycle
-//                println("++++++ findSolution: try row ${emptyRows[rowOffset]}")
+                println("++++++ findSolution: try row ${emptyRows[rowOffset]}")
 
                 // empty columns may already fill the entire grid, check it
                 if (startGrid.checkSolution())
@@ -507,12 +629,11 @@ object Skyscrapers {
                 }
             } else {
                 // it was last empty row, check the final variant
-                return if (startGrid.checkSolution()) return Pair(true, startGrid) else Pair(false, Grid.EMPTY)
+                return if (startGrid.checkSolution()) Pair(true, startGrid) else gridNotFound
             }
         }
 
-        //TODO: remove object allocation, return Int with column and row and grid in cache, or -1 if nothing found
-        return Pair(false, Grid.EMPTY)
+        return gridNotFound
     }
 
     /**
@@ -582,6 +703,7 @@ object Skyscrapers {
 //+++
     var putColumnToGridCount = 0L
     var putRowToGrid = 0L
+    var isPossibleValidRowsCounter = 0L
 //+++
 
 }
