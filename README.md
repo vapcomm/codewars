@@ -2,7 +2,13 @@
 
 It's a storage for my katas solved on https://www.codewars.com/users/vapcomm
 
-Feel free to use any code in this repository.
+Every solution has tests taken from kata's tests with my additional tests.
 
-It was made as an Android Studio project to simplify my everyday Kotlin developer's life. Every solution has
-tests taken from kata's tests with my additional tests.
+## kotlin
+
+Kotlin katas made as a Kotlin library with unit tests. May be opened in Android Studio or IDEA as Gradle project.
+
+
+## Licence
+
+Feel free to use any code in this repository under MIT licence.
