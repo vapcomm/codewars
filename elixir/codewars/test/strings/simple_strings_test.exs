@@ -17,6 +17,7 @@ defmodule SimpleStringsTest do
     IO.puts("#")
   end
 
+  # Maximum Length Difference test
   test "mxdiflg base" do
     s1 = ["hoqq", "bbllkw", "oox", "ejjuyyy", "plmiis", "xxxzgpsssa", "xxwwkktt", "znnnnfqknaz", "qqquuhii", "dvvvwz"]
     s2 = ["cccooommaaqqoxii", "gggqaffhhh", "tttoowwwmmww"]
@@ -36,6 +37,16 @@ defmodule SimpleStringsTest do
     s1 = []
     s2 = []
     mx_testing(s1, s2, -1)
+  end
+
+  # Counting Duplicates test
+  test "Counting Duplicates example" do
+    assert SimpleStrings.count_duplicates("") == 0
+    assert SimpleStrings.count_duplicates("abcde") == 0
+    assert SimpleStrings.count_duplicates("aabbcde") == 2
+    assert SimpleStrings.count_duplicates("aabBcde") == 2
+    assert SimpleStrings.count_duplicates("Indivisibility") == 1
+    assert SimpleStrings.count_duplicates("Indivisibilities") == 2
   end
 
 end
