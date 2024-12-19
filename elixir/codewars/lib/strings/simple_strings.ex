@@ -33,10 +33,38 @@ defmodule SimpleStrings do
   def count_duplicates(str) do
     # make a map with count of every unique char in a given string
     String.upcase(str)
-    |> String.to_charlist
+    |> String.to_charlist()
     |> Enum.reduce(%{}, fn key, acc -> Map.update(acc, key, 1, fn count -> count + 1 end) end)
     # count number of chars appeared in given string more then once
-    |> Enum.reduce(0, fn {_key, val}, acc -> if val > 1 do acc + 1 else acc end end)
+    |> Enum.reduce(0, fn {_key, val}, acc ->
+      if val > 1 do
+        acc + 1
+      else
+        acc
+      end
+    end)
   end
 
+  @doc """
+  Elixir #7
+  Backspaces in string - 6 kyu
+  https://www.codewars.com/kata/5727bb0fe81185ae62000ae3/train/elixir
+  ```
+  "abc#d##c"      ==>  "ac"
+  "abc##d######"  ==>  ""
+  "#######"       ==>  ""
+  ```
+  """
+  def clean_string(s) do
+    String.codepoints(s)
+    |> Enum.reduce([], fn cp, acc ->
+      if cp == "#" do
+        if Enum.empty?(acc), do: acc, else: tl(acc)
+      else
+        [cp | acc]
+      end
+    end)
+    |> Enum.reverse()
+    |> Enum.join()
+  end
 end

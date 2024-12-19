@@ -49,4 +49,17 @@ defmodule SimpleStringsTest do
     assert SimpleStrings.count_duplicates("Indivisibilities") == 2
   end
 
+  # Backspaces in string
+  test "Backspaces in string example" do
+    assert SimpleStrings.clean_string("abc#d##c") == "ac"
+    assert SimpleStrings.clean_string("abc####d##c#") == ""
+    assert SimpleStrings.clean_string("#######") == ""
+    assert SimpleStrings.clean_string("") == ""
+  end
+
+  test "Backspaces with Unicode" do
+    assert SimpleStrings.clean_string("ЭЮЯ#Д##Ц") == "ЭЦ"
+    assert SimpleStrings.clean_string("ФЫВ####А##П#") == ""
+  end
+
 end
