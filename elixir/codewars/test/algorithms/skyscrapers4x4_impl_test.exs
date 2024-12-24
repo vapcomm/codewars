@@ -71,4 +71,22 @@ defmodule Skyscrapers4x4ImplTest do
     assert check_solution(grid) == false
   end
 
+  test "grid to result" do
+    source_grid = {
+      {1, 3, 4, 2},
+      {4, 2, 1, 3},
+      {3, 4, 2, 1},
+      {2, 1, 3, 4}
+    }
+
+    grid = encode_grid(source_grid)
+    result = grid_to_result(grid)
+
+    expected = [ [1, 3, 4, 2],
+      [4, 2, 1, 3],
+      [3, 4, 2, 1],
+      [2, 1, 3, 4] ]
+    assert result == expected
+  end
+
 end
