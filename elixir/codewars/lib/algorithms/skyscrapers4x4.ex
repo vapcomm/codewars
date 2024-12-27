@@ -4,7 +4,7 @@ defmodule Skyscrapers4x4 do
   https://www.codewars.com/kata/5671d975d81d6c1c87000022/train/elixir
 
   **NOTE:** this solution use grid encoded in 48 bits stored in one integer to speedup grid changes.
-  Every cell in grid use 3 bits from integer value, starting from the lowest bits r:0, c:0
+  Every cell in grid use 3 bits from integer value, starting from the lowest bits r:0, c:0.
   ```
     C 0 1 2 3
   R ---------
@@ -17,6 +17,7 @@ defmodule Skyscrapers4x4 do
   765432109876543210987654321098765432109876543210
     G  F  E  D  C  B  A  9  8  7  6  5  4  3  2  1
   ```
+  Use grid's coordinate as row,column pairs, top left cell is 0,0.
   """
 
   import Bitwise
@@ -25,14 +26,14 @@ defmodule Skyscrapers4x4 do
   Pass the clues in an array of 16 items. This array contains the clues around the clock.
   Return 4x4 matrix, list of rows of ints.
   """
-  def solve(clues) do
+  def solve(_clues) do
     grid = empty_grid()
     IO.puts("Start grid\n" <> grid_to_string(grid))
 
     grid = grid ||| 1
     IO.puts("One grid\n" <> grid_to_string(grid))
 
-    all_permutations = permutations()
+    #all_permutations = permutations()
 
     # generate hints from clues
 
@@ -40,13 +41,62 @@ defmodule Skyscrapers4x4 do
     grid_to_result(grid)
   end
 
+  # Main engine to find solution from start grid with some zeros
+  # Return {:found, grid} if solution was found or
+  # {:no, grid} if solution can't be found for given grid.
+  def find_solution(grid) do
+    IO.puts("1: start\n#{grid_to_string(grid)}")
+
+    rc = find_first_zero(grid)
+    if elem(rc, 0) < 0 or elem(rc, 1) < 0 do
+      # no zeros, check grid for solution
+      if is_solution(grid) do
+        IO.puts("2: FOUND")
+        {:found, grid}
+      else
+        IO.puts("3: NO")
+        {:no, grid}
+      end
+    else
+      # check all possible permutations variants for rc cell
+      variants = get_variants(grid, rc)
+      IO.puts("4: variants: #{inspect(variants)}")
+
+      Enum.reduce_while(variants, {:no, grid}, fn v, {_, g} ->
+        new_grid = set_cell(g, rc, v)
+        IO.puts("5: new\n#{grid_to_string(new_grid)}")
+
+        if is_solution(new_grid) do
+          IO.puts("6: FOUND")
+          {:halt, {:found, new_grid}}
+        else
+          {result, solution} = find_solution(new_grid)
+          IO.puts("7: result: #{result}")
+
+          if result == :found do
+            {:halt, {:found, solution}}
+          else
+            {:cont, {:no, g}}
+          end
+        end
+      end)
+    end
+  end
+
   defp empty_grid() do
     0xFFFFFFFFFFFF &&& 0 # at least 48 bits integer
   end
 
   # Return cell value in given grid by given row and column.
-  defp get_cell(grid, row, column) when row in 0..3 and column in 0..3 do
-    (grid >>> (row * 12 + column * 3)) &&& 7
+  defp get_cell(grid, r, c) when r in 0..3 and c in 0..3 do
+    (grid >>> (r * 12 + c * 3)) &&& 7
+  end
+
+  # Return new grid with new cell value in given row and column
+  defp set_cell(grid, {r, c}, value) do
+    n = r * 12 + c * 3
+    mask = bnot(7 <<< n)
+    (grid &&& mask) ||| (value <<< n)
   end
 
   # Convert grid in integer to string
@@ -81,9 +131,9 @@ defmodule Skyscrapers4x4 do
   # Encode source grid from tuple of tuples to integer
   def encode_grid(source) do
     encode_row(elem(source, 0)) |||
-      (encode_row(elem(source, 1)) <<< 12) |||
-      (encode_row(elem(source, 2)) <<< 24) |||
-      (encode_row(elem(source, 3)) <<< 36)
+    (encode_row(elem(source, 1)) <<< 12) |||
+    (encode_row(elem(source, 2)) <<< 24) |||
+    (encode_row(elem(source, 3)) <<< 36)
   end
 
   # Encode row tuple to integer.
@@ -96,8 +146,8 @@ defmodule Skyscrapers4x4 do
   end
 
   # Return single row from grid
-  defp get_row(grid, row) do
-    (grid >>> (row * 12)) &&& 0xFFF
+  defp get_row(grid, r) do
+    (grid >>> (r * 12)) &&& 0xFFF
   end
 
   # Decode one row (4 numbers) from bit-encoded to string
@@ -106,7 +156,7 @@ defmodule Skyscrapers4x4 do
   end
 
   # Check grid for complete solution, return true if solution found.
-  def check_solution(grid) do
+  def is_solution(grid) do
     row_ok?(get_row(grid, 0)) and row_ok?(get_row(grid, 1)) and row_ok?(get_row(grid, 2)) and row_ok?(get_row(grid, 3))
   end
 
@@ -114,6 +164,89 @@ defmodule Skyscrapers4x4 do
   defp row_ok?(row) do
     r = (1 <<< (row &&& 7)) ||| (1 <<< ((row >>> 3) &&& 7)) ||| (1 <<< ((row >>> 6) &&& 7)) ||| (1 <<< ((row >>> 9) &&& 7))
     r == 0b00011110
+  end
+
+  # Return tuple with row, column coordinates of first found zero in grid
+  @spec find_first_zero(integer()) :: integer()
+  def find_first_zero(grid) do
+    column = find_zero_in_row(get_row(grid, 0))
+    if column >= 0 do
+      {0, column}
+    else
+      column = find_zero_in_row(get_row(grid, 1))
+      if column >= 0 do
+        {1, column}
+      else
+        column = find_zero_in_row(get_row(grid, 2))
+        if column >= 0 do
+          {2, column}
+        else
+          column = find_zero_in_row(get_row(grid, 3))
+          if column >= 0 do
+            {3, column}
+          else
+            {-1, -1}
+          end
+        end
+      end
+    end
+  end
+
+  # Return number of the first column with zero value or -1 if zero not found
+  @spec find_zero_in_row(integer()) :: integer()
+  defp find_zero_in_row(row) do
+    cond do
+      (row &&& 7) == 0 -> 0
+      ((row >>> 3) &&& 7) == 0 -> 1
+      ((row >>> 6) &&& 7) == 0 -> 2
+      ((row >>> 9) &&& 7) == 0 -> 3
+      true -> -1
+    end
+  end
+
+  # Return list of numbers suitable to put in row r and column c
+  def get_variants(grid, {r, c}) do
+    rb = get_row_numbers_bits(grid, r)
+    cb = get_column_numbers_bits(grid, c)
+    # left absent numbers bits for 1..4 only
+    common = bnot(rb ||| cb) &&& 0x1E
+    bits_to_list(common)
+  end
+
+  # Convert bitmask to list with bits numbers from 1st bit.
+  # If number's bit is 1, this number is added to the result list.
+  def bits_to_list(bits) do
+    bits_to_list(bits >>> 1, 1)
+  end
+
+  defp bits_to_list(bits, n) do
+    if bits == 0 do
+      []
+    else
+      if (bits &&& 1) == 1 do
+        [n | bits_to_list(bits >>> 1, n + 1)]
+      else
+        bits_to_list(bits >>> 1, n + 1)
+      end
+    end
+  end
+
+  # Return bitmask of numbers presented in grid's row
+  # Examples for rows:
+  # {1, 2, 3, 4} -> 0b00011110
+  # {0, 0, 1, 2} -> 0b00000111
+  defp get_row_numbers_bits(grid, r) do
+    row = get_row(grid, r)
+    (1 <<< (row &&& 7)) ||| (1 <<< ((row >>> 3) &&& 7)) ||| (1 <<< ((row >>> 6) &&& 7)) ||| (1 <<< ((row >>> 9) &&& 7))
+  end
+
+  # Return bitmask of numbers in grid's column
+  defp get_column_numbers_bits(grid, c) do
+    c0 = (grid >>> (c * 3)) &&& 7
+    c1 = (grid >>> (c * 3 + 12)) &&& 7
+    c2 = (grid >>> (c * 3 + 24)) &&& 7
+    c3 = (grid >>> (c * 3 + 36)) &&& 7
+    (1 <<< c0) ||| (1 <<< c1) ||| (1 <<< c2) ||| (1 <<< c3)
   end
 
 end

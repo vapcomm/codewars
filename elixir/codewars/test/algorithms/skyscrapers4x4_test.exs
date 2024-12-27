@@ -13,10 +13,12 @@ defmodule Skyscrapers4x4Test do
       1, 2, 2, 3,
       3, 2, 1, 3 ]
 
-    expected = [ [1, 3, 4, 2],
+    expected = [
+      [1, 3, 4, 2],
       [4, 2, 1, 3],
       [3, 4, 2, 1],
-      [2, 1, 3, 4] ]
+      [2, 1, 3, 4]
+    ]
 
     actual = Skyscrapers4x4.solve(clues)
     assert actual == expected
