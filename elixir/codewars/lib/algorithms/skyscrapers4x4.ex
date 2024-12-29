@@ -26,24 +26,84 @@ defmodule Skyscrapers4x4 do
   Pass the clues in an array of 16 items. This array contains the clues around the clock.
   Return 4x4 matrix, list of rows of ints.
   """
-  def solve(_clues) do
+  def solve(clues) do
     grid = empty_grid()
-    IO.puts("Start grid\n" <> grid_to_string(grid))
-
-    grid = grid ||| 1
-    IO.puts("One grid\n" <> grid_to_string(grid))
-
-    #all_permutations = permutations()
+#    IO.puts("Start grid\n" <> grid_to_string(grid))
 
     # generate hints from clues
+    {rows_hints, columns_hints} = make_hints(clues)
 
+    IO.puts("Rows hints: #{inspect(rows_hints)}")
+    IO.puts("Columns hints: #{inspect(columns_hints)}")
 
     grid_to_result(grid)
   end
 
-  # Main engine to find solution from start grid with some zeros
-  # Return {:found, grid} if solution was found or
-  # {:no, grid} if solution can't be found for given grid.
+  @doc """
+  Return two tuples with permutations lists, first for rows, second for columns:
+  {{[],[],[],[]}, {[],[],[],[]}}
+  Clues in given list form the circle around a grid:
+  ```
+      0  1  2  3
+  15| 0  0  0  0 | 4
+  14| 0  0  0  0 | 5
+  13| 0  0  0  0 | 6
+  12| 0  0  0  0 | 7
+     11 10  9  8
+  ```
+  """
+  def make_hints(clues) do
+    cl = List.to_tuple(clues)
+    perms = make_permutations_table()
+
+    rows_hints = {
+      perms[clues_to_key(elem(cl, 15), elem(cl, 4))],
+      perms[clues_to_key(elem(cl, 14), elem(cl, 5))],
+      perms[clues_to_key(elem(cl, 13), elem(cl, 6))],
+      perms[clues_to_key(elem(cl, 12), elem(cl, 7))]
+    }
+    columns_hints = {
+      perms[clues_to_key(elem(cl, 0), elem(cl, 11))],
+      perms[clues_to_key(elem(cl, 1), elem(cl, 10))],
+      perms[clues_to_key(elem(cl, 2), elem(cl, 9))],
+      perms[clues_to_key(elem(cl, 3), elem(cl, 8))]
+    }
+
+    {rows_hints, columns_hints}
+  end
+
+  # Returns map with keys by clues_to_key() to pairF_S and singleF_S permutations list
+  defp make_permutations_table do
+    %{
+      clues_to_key(1, 2) => encode_rows_list([{4, 2, 3, 1}, {4, 1, 2, 3}, {4, 2, 1, 3}]),
+      clues_to_key(1, 3) => encode_rows_list([{4, 1, 3, 2}, {4, 3, 1, 2}]),
+      clues_to_key(1, 4) => encode_rows_list([{4, 3, 2, 1}]),
+
+      clues_to_key(2, 1) => encode_rows_list([{3, 1, 2, 4}, {3, 2, 1, 4}]),
+      clues_to_key(2, 2) => encode_rows_list([{3, 2, 4, 1}, {3, 4, 1, 2}, {3, 1, 4, 2}, {1, 4, 2, 3}, {2, 4, 1, 3}, {2, 1, 4, 3}]),
+      clues_to_key(2, 3) => encode_rows_list([{2, 4, 3, 1}, {3, 4, 2, 1}, {1, 4, 3, 2}]),
+
+      clues_to_key(3, 1) => encode_rows_list([{2, 1, 3, 4}, {1, 3, 2, 4}, {2, 3, 1, 4}]),
+      clues_to_key(3, 2) => encode_rows_list([{2, 3, 4, 1}, {1, 3, 4, 2}, {1, 2, 4, 3}]),
+      clues_to_key(4, 1) => encode_rows_list([{1, 2, 3, 4}])
+      #TODO: @single
+    }
+  end
+
+  #  Return encoded value of first and second clues numbers.
+  #  Example: clues_to_key(1, 2) -> 0x12
+  defp clues_to_key(first, second) do
+    (first <<< 4) ||| second
+  end
+
+  defp encode_rows_list(rows) do
+    Enum.map(rows, fn row -> encode_row(row) end )
+  end
+
+  @doc """
+  Main engine to find solution from start grid with some zeros
+  Return {:found, grid} if solution was found or {:no, grid} if solution can't be found for given grid.
+  """
   def find_solution(grid) do
     IO.puts("1: start\n#{grid_to_string(grid)}")
 
@@ -108,7 +168,9 @@ defmodule Skyscrapers4x4 do
     end)
   end
 
-  # Generate all permutations of 1, 2, 3, 4 and return bits-encoded values list.
+  @doc """
+  Generate all permutations of 1, 2, 3, 4 and return bits-encoded values list.
+  """
   def permutations() do
     # table of permutations taken from Kotlin solution's tests
     source = [
@@ -121,14 +183,18 @@ defmodule Skyscrapers4x4 do
     Enum.map(source, fn p -> encode_row(p) end)
   end
 
-  # Decode compact grid's representation to matrix of ints as needed for solve()
+  @doc """
+  Decode compact grid's representation to matrix of ints as needed for solve()
+  """
   def grid_to_result(grid) do
     Enum.reduce(0..3, [], fn i, acc ->
       List.insert_at(acc, -1, [get_cell(grid, i, 0), get_cell(grid, i, 1), get_cell(grid, i, 2), get_cell(grid, i, 3)])
     end)
   end
 
-  # Encode source grid from tuple of tuples to integer
+  @doc """
+  Encode source grid from tuple of tuples to integer
+  """
   def encode_grid(source) do
     encode_row(elem(source, 0)) |||
     (encode_row(elem(source, 1)) <<< 12) |||
@@ -136,11 +202,15 @@ defmodule Skyscrapers4x4 do
     (encode_row(elem(source, 3)) <<< 36)
   end
 
-  # Encode row tuple to integer.
-  # One row 1, 2, 3, 4 is encoded in one integer, 3 bits for one number 1..4, the first number in a tuple
-  # encoded in 3 least significant bits, and so on:
-  #  109876543210  -- bits numbers
-  #    4  3  2  1  -- encoded numbers from one grid row (one permutation)
+  @doc """
+  Encode row tuple to integer.
+  One row 1, 2, 3, 4 is encoded in one integer, 3 bits for one number 1..4, the first number in a tuple
+  encoded in 3 least significant bits, and so on:
+  ```
+  109876543210  -- bits numbers
+    4  3  2  1  -- encoded numbers from one grid row (one permutation)
+  ```
+  """
   def encode_row(row) do
     (elem(row, 3) <<< 9) ||| (elem(row, 2) <<< 6) ||| (elem(row, 1) <<< 3) ||| elem(row, 0)
   end
@@ -150,12 +220,16 @@ defmodule Skyscrapers4x4 do
     (grid >>> (r * 12)) &&& 0xFFF
   end
 
-  # Decode one row (4 numbers) from bit-encoded to string
+  @doc """
+  Decode one row (4 numbers) from bit-encoded to string
+  """
   def row_to_string(row) do
     "#{row &&& 7}, #{(row >>> 3) &&& 7}, #{(row >>> 6) &&& 7}, #{(row >>> 9) &&& 7}"
   end
 
-  # Check grid for complete solution, return true if solution found.
+  @doc """
+  Check grid for complete solution, return true if solution found.
+  """
   def is_solution(grid) do
     row_ok?(get_row(grid, 0)) and row_ok?(get_row(grid, 1)) and row_ok?(get_row(grid, 2)) and row_ok?(get_row(grid, 3))
   end
@@ -166,7 +240,9 @@ defmodule Skyscrapers4x4 do
     r == 0b00011110
   end
 
-  # Return tuple with row, column coordinates of first found zero in grid
+  @doc """
+  Return tuple with row, column coordinates of first found zero in grid
+  """
   @spec find_first_zero(integer()) :: integer()
   def find_first_zero(grid) do
     column = find_zero_in_row(get_row(grid, 0))
@@ -204,7 +280,9 @@ defmodule Skyscrapers4x4 do
     end
   end
 
-  # Return list of numbers suitable to put in row r and column c
+  @doc """
+  Return list of numbers suitable to put in row r and column c
+  """
   def get_variants(grid, {r, c}) do
     rb = get_row_numbers_bits(grid, r)
     cb = get_column_numbers_bits(grid, c)
@@ -213,8 +291,10 @@ defmodule Skyscrapers4x4 do
     bits_to_list(common)
   end
 
-  # Convert bitmask to list with bits numbers from 1st bit.
-  # If number's bit is 1, this number is added to the result list.
+  @doc """
+  Convert bitmask to list with bits numbers from 1st bit.
+  If number's bit is 1, this number is added to the result list.
+  """
   def bits_to_list(bits) do
     bits_to_list(bits >>> 1, 1)
   end
@@ -233,8 +313,8 @@ defmodule Skyscrapers4x4 do
 
   # Return bitmask of numbers presented in grid's row
   # Examples for rows:
-  # {1, 2, 3, 4} -> 0b00011110
-  # {0, 0, 1, 2} -> 0b00000111
+  #  {1, 2, 3, 4} -> 0b00011110
+  #  {0, 0, 1, 2} -> 0b00000111
   defp get_row_numbers_bits(grid, r) do
     row = get_row(grid, r)
     (1 <<< (row &&& 7)) ||| (1 <<< ((row >>> 3) &&& 7)) ||| (1 <<< ((row >>> 6) &&& 7)) ||| (1 <<< ((row >>> 9) &&& 7))
