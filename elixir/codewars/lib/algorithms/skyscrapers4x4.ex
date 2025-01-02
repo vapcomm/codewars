@@ -27,16 +27,29 @@ defmodule Skyscrapers4x4 do
   Return 4x4 matrix, list of rows of ints.
   """
   def solve(clues) do
-    grid = empty_grid()
-#    IO.puts("Start grid\n" <> grid_to_string(grid))
-
     # generate hints from clues
     {rows_hints, columns_hints} = make_hints(clues)
-
     IO.puts("Rows hints: #{inspect(rows_hints)}")
     IO.puts("Columns hints: #{inspect(columns_hints)}")
 
-    grid_to_result(grid)
+    {result, start_grid} = make_start_grid(rows_hints, columns_hints)
+    IO.puts("Start grid\n" <> grid_to_string(start_grid))
+    if result == :found do
+      IO.puts("solve: FOUND with hints")
+      grid_to_result(start_grid)
+    else
+      IO.puts("solve: START with hints grid")
+      {res, solution} = find_solution(start_grid)
+
+      if res == :found do
+        IO.puts("solve: FOUND solution:\n#{grid_to_string(solution)}")
+      else
+        IO.puts("solve: NOT FOUND, result: #{res}, grid:\n#{grid_to_string(solution)}")
+      end
+
+      grid_to_result(solution)
+    end
+
   end
 
   @doc """
@@ -72,11 +85,13 @@ defmodule Skyscrapers4x4 do
     {rows_hints, columns_hints}
   end
 
-  # Returns map with keys by clues_to_key() to pairF_S and singleF_S permutations list
+  # Returns map with keys by clues_to_key() to pairF_S and singleF_S permutations list.
+  # For 0,0 clue uses empty list.
   defp make_permutations_table do
     %{
-      clues_to_key(1, 2) => encode_rows_list([{4, 2, 3, 1}, {4, 1, 2, 3}, {4, 2, 1, 3}]),
-      clues_to_key(1, 3) => encode_rows_list([{4, 1, 3, 2}, {4, 3, 1, 2}]),
+      # pairs
+      clues_to_key(1, 2) => encode_rows_list([{4, 1, 2, 3}, {4, 2, 1, 3}]),
+      clues_to_key(1, 3) => encode_rows_list([{4, 2, 3, 1}, {4, 1, 3, 2}, {4, 3, 1, 2}]),
       clues_to_key(1, 4) => encode_rows_list([{4, 3, 2, 1}]),
 
       clues_to_key(2, 1) => encode_rows_list([{3, 1, 2, 4}, {3, 2, 1, 4}]),
@@ -85,8 +100,23 @@ defmodule Skyscrapers4x4 do
 
       clues_to_key(3, 1) => encode_rows_list([{2, 1, 3, 4}, {1, 3, 2, 4}, {2, 3, 1, 4}]),
       clues_to_key(3, 2) => encode_rows_list([{2, 3, 4, 1}, {1, 3, 4, 2}, {1, 2, 4, 3}]),
-      clues_to_key(4, 1) => encode_rows_list([{1, 2, 3, 4}])
-      #TODO: @single
+      clues_to_key(4, 1) => encode_rows_list([{1, 2, 3, 4}]),
+
+      # singles
+      clues_to_key(1, 0) => encode_rows_list([{4, 2, 3, 1}, {4, 3, 2, 1}, {4, 1, 3, 2}, {4, 3, 1, 2}, {4, 1, 2, 3}, {4, 2, 1, 3}]),
+      clues_to_key(2, 0) => encode_rows_list([{3, 1, 2, 4}, {3, 2, 1, 4}, {2, 4, 3, 1}, {3, 4, 2, 1}, {3, 2, 4, 1}, {1, 4, 3, 2},
+                                              {3, 4, 1, 2}, {3, 1, 4, 2}, {1, 4, 2, 3}, {2, 4, 1, 3}, {2, 1, 4, 3}]),
+      clues_to_key(3, 0) => encode_rows_list([{2, 1, 3, 4}, {1, 3, 2, 4}, {2, 3, 1, 4}, {2, 3, 4, 1}, {1, 3, 4, 2}, {1, 2, 4, 3}]),
+      clues_to_key(4, 0) => encode_rows_list([{1, 2, 3, 4}]),
+
+      clues_to_key(0, 1) => encode_rows_list([{1, 2, 3, 4}, {2, 1, 3, 4}, {3, 1, 2, 4}, {1, 3, 2, 4}, {2, 3, 1, 4}, {3, 2, 1, 4}]),
+      clues_to_key(0, 2) => encode_rows_list([{2, 3, 4, 1}, {3, 2, 4, 1}, {3, 4, 1, 2}, {1, 3, 4, 2}, {3, 1, 4, 2}, {4, 1, 2, 3},
+                                              {1, 4, 2, 3}, {2, 4, 1, 3}, {4, 2, 1, 3}, {1, 2, 4, 3}, {2, 1, 4, 3}]),
+      clues_to_key(0, 3) => encode_rows_list([{4, 2, 3, 1}, {2, 4, 3, 1}, {3, 4, 2, 1}, {4, 1, 3, 2}, {1, 4, 3, 2}, {4, 3, 1, 2}]),
+      clues_to_key(0, 4) => encode_rows_list([{4, 3, 2, 1}]),
+
+      # zero
+      clues_to_key(0, 0) => []
     }
   end
 
@@ -98,6 +128,72 @@ defmodule Skyscrapers4x4 do
 
   defp encode_rows_list(rows) do
     Enum.map(rows, fn row -> encode_row(row) end )
+  end
+
+  @doc """
+  Uses hints to prepare the first grid to start to find solution.
+  If there are enough hints start grid may be a final solution.
+  Return {:found, grid} if solution was found or {:no, grid} to continue with this grid in find_solution().
+  """
+  def make_start_grid(rows_hints, columns_hints) do
+    row_0(rows_hints, columns_hints, empty_grid())
+  end
+
+  defp row_0(rows_hints, columns_hints, grid) do
+    {result, solution} = Enum.reduce_while(elem(rows_hints, 0), {:no, grid}, fn row, {_, g} ->
+      new_grid = set_row(g, row, 0)
+      IO.puts("row_0\n#{grid_to_string(new_grid)}")
+
+      column_0(rows_hints, columns_hints, new_grid)
+      |> check_result(new_grid)
+    end)
+
+    if result == :found do
+      {:found, solution}
+    else
+      column_0(rows_hints, columns_hints, grid)
+    end
+  end
+
+  defp column_0(rows_hints, columns_hints, grid) do
+    {result, solution} = Enum.reduce_while(elem(columns_hints, 0), {:no, grid}, fn column, {_, g} ->
+      if is_column_suitable(g, column, 0) do
+        new_grid = set_column(g, column, 0)
+        IO.puts("column_0\n#{grid_to_string(new_grid)}")
+
+        row_1(rows_hints, columns_hints, new_grid)
+        |> check_result(new_grid)
+      else
+        {:cont, {:no, g}}
+      end
+    end)
+
+    if result == :found do
+      {:found, solution}
+    else
+      row_1(rows_hints, columns_hints, grid)
+    end
+  end
+
+  defp row_1(rows_hints, columns_hints, grid) do
+    #TODO
+    {:no, grid}
+  end
+
+  defp is_column_suitable(g, column, c) do
+    prev = get_column(g, c)
+    ((prev &&& 7) == 0 or (prev &&& 7) == (column &&& 7)) and
+    ((prev &&& (7 <<< 3)) == 0 or (prev &&& (7 <<< 3)) == (column &&& (7 <<< 3))) and
+    ((prev &&& (7 <<< 6)) == 0 or (prev &&& (7 <<< 6)) == (column &&& (7 <<< 6))) and
+    ((prev &&& (7 <<< 9)) == 0 or (prev &&& (7 <<< 9)) == (column &&& (7 <<< 9)))
+  end
+
+  defp check_result({result, solution}, grid) do
+    if result == :found do
+      {:halt, {:found, solution}}
+    else
+      {:cont, {:no, grid}}
+    end
   end
 
   @doc """
@@ -218,6 +314,39 @@ defmodule Skyscrapers4x4 do
   # Return single row from grid
   defp get_row(grid, r) do
     (grid >>> (r * 12)) &&& 0xFFF
+  end
+
+  # Return new grid with new row on index r
+  defp set_row(grid, row, r) do
+    n = r * 12
+    (grid &&& (bnot(0xFFF <<< n))) ||| (row <<< n)
+  end
+
+  # Return single column from grid
+  def get_column(grid, c) do
+    c0 = (grid >>> (c * 3)) &&& 7
+    c1 = (grid >>> (c * 3 + 12)) &&& 7
+    c2 = (grid >>> (c * 3 + 24)) &&& 7
+    c3 = (grid >>> (c * 3 + 36)) &&& 7
+    (c3 <<< 9) ||| (c2 <<< 6) ||| (c1 <<< 3) ||| c0
+  end
+
+  # Return new grid with new column on index c
+  #                   4         3         2         1         0
+  #            765432109876543210987654321098765432109876543210
+  #   mask = 0b000000000111000000000111000000000111000000000111   -- mask for whole grid (here before inversion)
+  # column =                                       DDDCCCBBBAAA		-- column in integer
+  # result =            DDD         CCC         BBB         AAA 	-- column's 0 parts spread on grid
+  def set_column(grid, column, c) do
+    mask = bnot(((7 <<< 36) ||| (7 <<< 24) ||| (7 <<< 12) |||  7) <<< (c * 3))
+
+    (grid &&& mask) |||
+    ((
+     (column &&& 7) |||
+     ((column &&& (7 <<< 3)) <<< (12 - 3)) |||
+     ((column &&& (7 <<< 6)) <<< (24 - 6)) |||
+     ((column &&& (7 <<< 9)) <<< (36 - 9))
+    ) <<< (c * 3))
   end
 
   @doc """

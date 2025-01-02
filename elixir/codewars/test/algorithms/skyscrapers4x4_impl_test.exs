@@ -257,4 +257,48 @@ defmodule Skyscrapers4x4ImplTest do
     assert res == :no
   end
 
+  test "columns" do
+    grid = encode_grid({
+      {1, 0, 0, 0},
+      {2, 0, 0, 0},
+      {3, 0, 0, 0},
+      {4, 0, 0, 0}
+    })
+
+    column = get_column(grid, 0)
+    assert column == 0b100011010001
+
+    grid = set_column(grid, column, 1)
+    result = grid_to_result(grid)
+    expected = [
+      [1, 1, 0, 0],
+      [2, 2, 0, 0],
+      [3, 3, 0, 0],
+      [4, 4, 0, 0]
+    ]
+    assert result == expected
+
+    column = 0b001010011100
+    grid = set_column(grid, column, 2)
+    result = grid_to_result(grid)
+    expected = [
+      [1, 1, 4, 0],
+      [2, 2, 3, 0],
+      [3, 3, 2, 0],
+      [4, 4, 1, 0]
+    ]
+    assert result == expected
+
+    column = 0b001100011010
+    grid = set_column(grid, column, 3)
+    result = grid_to_result(grid)
+    expected = [
+      [1, 1, 4, 2],
+      [2, 2, 3, 3],
+      [3, 3, 2, 4],
+      [4, 4, 1, 1]
+    ]
+    assert result == expected
+  end
+
 end
