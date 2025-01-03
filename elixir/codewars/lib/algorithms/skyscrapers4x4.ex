@@ -29,27 +29,17 @@ defmodule Skyscrapers4x4 do
   def solve(clues) do
     # generate hints from clues
     {rows_hints, columns_hints} = make_hints(clues)
-    IO.puts("Rows hints: #{inspect(rows_hints)}")
-    IO.puts("Columns hints: #{inspect(columns_hints)}")
+    IO.puts("Rows hints: #{hints_to_string(rows_hints)}")
+    IO.puts("Columns hints: #{hints_to_string(columns_hints)}")
 
-    {result, start_grid} = make_start_grid(rows_hints, columns_hints)
-    IO.puts("Start grid\n" <> grid_to_string(start_grid))
+    {result, solution} = make_solution(rows_hints, columns_hints)
     if result == :found do
-      IO.puts("solve: FOUND with hints")
-      grid_to_result(start_grid)
+      IO.puts("solve: FOUND solution:\n#{grid_to_string(solution)}")
     else
-      IO.puts("solve: START with hints grid")
-      {res, solution} = find_solution(start_grid)
-
-      if res == :found do
-        IO.puts("solve: FOUND solution:\n#{grid_to_string(solution)}")
-      else
-        IO.puts("solve: NOT FOUND, result: #{res}, grid:\n#{grid_to_string(solution)}")
-      end
-
-      grid_to_result(solution)
+      IO.puts("solve: NOT FOUND, result: #{result}, grid:\n#{grid_to_string(solution)}")
     end
 
+    grid_to_result(solution)
   end
 
   @doc """
@@ -131,61 +121,123 @@ defmodule Skyscrapers4x4 do
   end
 
   @doc """
+  Encode row tuple to integer.
+  One row 1, 2, 3, 4 is encoded in one integer, 3 bits for one number 1..4, the first number in a tuple
+  encoded in 3 least significant bits, and so on:
+  ```
+  109876543210  -- bits numbers
+    4  3  2  1  -- encoded numbers from one grid row (one permutation)
+  ```
+  """
+  def encode_row(row) do
+    (elem(row, 3) <<< 9) ||| (elem(row, 2) <<< 6) ||| (elem(row, 1) <<< 3) ||| elem(row, 0)
+  end
+
+  @doc """
   Uses hints to prepare the first grid to start to find solution.
   If there are enough hints start grid may be a final solution.
-  Return {:found, grid} if solution was found or {:no, grid} to continue with this grid in find_solution().
+  Return {:found, grid} if solution was found or {:no, grid}.
   """
-  def make_start_grid(rows_hints, columns_hints) do
-    row_0(rows_hints, columns_hints, empty_grid())
+  def make_solution(rows_hints, columns_hints) do
+    add_row(rows_hints, columns_hints, empty_grid(), 0)
   end
 
-  defp row_0(rows_hints, columns_hints, grid) do
-    {result, solution} = Enum.reduce_while(elem(rows_hints, 0), {:no, grid}, fn row, {_, g} ->
-      new_grid = set_row(g, row, 0)
-      IO.puts("row_0\n#{grid_to_string(new_grid)}")
-
-      column_0(rows_hints, columns_hints, new_grid)
-      |> check_result(new_grid)
-    end)
-
-    if result == :found do
-      {:found, solution}
+  defp add_row(rows_hints, columns_hints, grid, index) do
+    if index >= 4 do
+      {if(is_solution(grid), do: :found, else: :no), grid}
     else
-      column_0(rows_hints, columns_hints, grid)
-    end
-  end
+      hints = elem(rows_hints, index)
+      {result, solution} = Enum.reduce_while(hints, {:no, grid}, fn row, {_, g} ->
+        if index == 0 do
+          IO.puts("---------------------------------")
+        end
+        IO.puts("row_#{index}: #{row_to_string(row)}\n#{grid_to_string(g)}")
 
-  defp column_0(rows_hints, columns_hints, grid) do
-    {result, solution} = Enum.reduce_while(elem(columns_hints, 0), {:no, grid}, fn column, {_, g} ->
-      if is_column_suitable(g, column, 0) do
-        new_grid = set_column(g, column, 0)
-        IO.puts("column_0\n#{grid_to_string(new_grid)}")
+        if is_row_suitable(g, row, index) do
+          new_grid = set_row(g, row, index)
+          IO.puts("row_#{index} new\n#{grid_to_string(new_grid)}")
 
-        row_1(rows_hints, columns_hints, new_grid)
-        |> check_result(new_grid)
+          add_column(rows_hints, columns_hints, new_grid, index)
+          |> check_result(grid)
+        else
+          {:cont, {:no, grid}}
+        end
+      end)
+
+      IO.puts("row_#{index} result: #{result}\n#{grid_to_string(solution)}")
+
+      if result == :found do
+        {:found, solution}
       else
-        {:cont, {:no, g}}
+        # continue recursion only if hints was empty, otherwise stop and return :no
+        if Enum.empty?(hints) do
+          add_column(rows_hints, columns_hints, grid, index)
+        else
+          {:no, grid}
+        end
       end
-    end)
-
-    if result == :found do
-      {:found, solution}
-    else
-      row_1(rows_hints, columns_hints, grid)
     end
   end
 
-  defp row_1(rows_hints, columns_hints, grid) do
-    #TODO
-    {:no, grid}
+  defp add_column(rows_hints, columns_hints, grid, index) do
+    if index >= 4 do
+      {if(is_solution(grid), do: :found, else: :no), grid}
+    else
+      hints = elem(columns_hints, index)
+      {result, solution} = Enum.reduce_while(hints, {:no, grid}, fn column, {_, g} ->
+        IO.puts("column_#{index}: #{row_to_string(column)}\n#{grid_to_string(g)}")
+
+        if is_column_suitable(g, column, index) do
+          new_grid = set_column(g, column, index)
+          IO.puts("column_#{index} new\n#{grid_to_string(new_grid)}")
+
+          if index >= 3 do
+            # whole grid is filled up with possible rows and columns,
+            # check solution or find one if there are zero cells left
+            find_solution(new_grid)
+          else
+            # continue to fill grid, go deeper on the next level
+            add_row(rows_hints, columns_hints, new_grid, index + 1)
+          end
+          |> check_result(grid)
+        else
+          {:cont, {:no, grid}}
+        end
+      end)
+
+      IO.puts("column_#{index} result: #{result}\n#{grid_to_string(solution)}")
+
+      if result == :found do
+        {:found, solution}
+      else
+        if index < 3 do
+          if Enum.empty?(hints) do
+            add_row(rows_hints, columns_hints, grid, index + 1)
+          else
+            {:no, grid}
+          end
+        else
+          find_solution(solution)
+        end
+      end
+    end
   end
 
-  defp is_column_suitable(g, column, c) do
-    prev = get_column(g, c)
-    ((prev &&& 7) == 0 or (prev &&& 7) == (column &&& 7)) and
-    ((prev &&& (7 <<< 3)) == 0 or (prev &&& (7 <<< 3)) == (column &&& (7 <<< 3))) and
-    ((prev &&& (7 <<< 6)) == 0 or (prev &&& (7 <<< 6)) == (column &&& (7 <<< 6))) and
-    ((prev &&& (7 <<< 9)) == 0 or (prev &&& (7 <<< 9)) == (column &&& (7 <<< 9)))
+  defp is_row_suitable(grid, row, r) do
+    is_values_suitable(get_row(grid, r), row)
+  end
+
+  defp is_column_suitable(grid, column, c) do
+    is_values_suitable(get_column(grid, c), column)
+  end
+
+  # Check if we can replace old row/column with new value. Only zero cells may be replaced with new numbers,
+  # cells with numbers should stay intact.
+  defp is_values_suitable(prev, new) do
+    ((prev &&& 7) == 0 or (prev &&& 7) == (new &&& 7)) and
+    ((prev &&& (7 <<< 3)) == 0 or (prev &&& (7 <<< 3)) == (new &&& (7 <<< 3))) and
+    ((prev &&& (7 <<< 6)) == 0 or (prev &&& (7 <<< 6)) == (new &&& (7 <<< 6))) and
+    ((prev &&& (7 <<< 9)) == 0 or (prev &&& (7 <<< 9)) == (new &&& (7 <<< 9)))
   end
 
   defp check_result({result, solution}, grid) do
@@ -197,11 +249,11 @@ defmodule Skyscrapers4x4 do
   end
 
   @doc """
-  Main engine to find solution from start grid with some zeros
+  Second stage engine to find solution from hints filled grid with some zeros.
   Return {:found, grid} if solution was found or {:no, grid} if solution can't be found for given grid.
   """
   def find_solution(grid) do
-    IO.puts("1: start\n#{grid_to_string(grid)}")
+    IO.puts("1: find solution START\n#{grid_to_string(grid)}")
 
     rc = find_first_zero(grid)
     if elem(rc, 0) < 0 or elem(rc, 1) < 0 do
@@ -265,50 +317,12 @@ defmodule Skyscrapers4x4 do
   end
 
   @doc """
-  Generate all permutations of 1, 2, 3, 4 and return bits-encoded values list.
-  """
-  def permutations() do
-    # table of permutations taken from Kotlin solution's tests
-    source = [
-      {1, 2, 3, 4}, {2, 1, 3, 4}, {3, 1, 2, 4}, {1, 3, 2, 4}, {2, 3, 1, 4}, {3, 2, 1, 4},
-      {4, 2, 3, 1}, {2, 4, 3, 1}, {3, 4, 2, 1}, {4, 3, 2, 1}, {2, 3, 4, 1}, {3, 2, 4, 1},
-      {4, 1, 3, 2}, {1, 4, 3, 2}, {3, 4, 1, 2}, {4, 3, 1, 2}, {1, 3, 4, 2}, {3, 1, 4, 2},
-      {4, 1, 2, 3}, {1, 4, 2, 3}, {2, 4, 1, 3}, {4, 2, 1, 3}, {1, 2, 4, 3}, {2, 1, 4, 3}
-    ]
-
-    Enum.map(source, fn p -> encode_row(p) end)
-  end
-
-  @doc """
   Decode compact grid's representation to matrix of ints as needed for solve()
   """
   def grid_to_result(grid) do
     Enum.reduce(0..3, [], fn i, acc ->
       List.insert_at(acc, -1, [get_cell(grid, i, 0), get_cell(grid, i, 1), get_cell(grid, i, 2), get_cell(grid, i, 3)])
     end)
-  end
-
-  @doc """
-  Encode source grid from tuple of tuples to integer
-  """
-  def encode_grid(source) do
-    encode_row(elem(source, 0)) |||
-    (encode_row(elem(source, 1)) <<< 12) |||
-    (encode_row(elem(source, 2)) <<< 24) |||
-    (encode_row(elem(source, 3)) <<< 36)
-  end
-
-  @doc """
-  Encode row tuple to integer.
-  One row 1, 2, 3, 4 is encoded in one integer, 3 bits for one number 1..4, the first number in a tuple
-  encoded in 3 least significant bits, and so on:
-  ```
-  109876543210  -- bits numbers
-    4  3  2  1  -- encoded numbers from one grid row (one permutation)
-  ```
-  """
-  def encode_row(row) do
-    (elem(row, 3) <<< 9) ||| (elem(row, 2) <<< 6) ||| (elem(row, 1) <<< 3) ||| elem(row, 0)
   end
 
   # Return single row from grid
@@ -350,23 +364,19 @@ defmodule Skyscrapers4x4 do
   end
 
   @doc """
-  Decode one row (4 numbers) from bit-encoded to string
-  """
-  def row_to_string(row) do
-    "#{row &&& 7}, #{(row >>> 3) &&& 7}, #{(row >>> 6) &&& 7}, #{(row >>> 9) &&& 7}"
-  end
-
-  @doc """
   Check grid for complete solution, return true if solution found.
   """
   def is_solution(grid) do
-    row_ok?(get_row(grid, 0)) and row_ok?(get_row(grid, 1)) and row_ok?(get_row(grid, 2)) and row_ok?(get_row(grid, 3))
+    is_line_ok(get_row(grid, 0)) and is_line_ok(get_row(grid, 1)) and is_line_ok(get_row(grid, 2)) and is_line_ok(get_row(grid, 3)) and
+    is_line_ok(get_column(grid, 0)) and is_line_ok(get_column(grid, 1)) and is_line_ok(get_column(grid, 2)) and is_line_ok(get_column(grid, 3))
   end
 
-  # Check if encoded row contains all numbers 1..4
-  defp row_ok?(row) do
-    r = (1 <<< (row &&& 7)) ||| (1 <<< ((row >>> 3) &&& 7)) ||| (1 <<< ((row >>> 6) &&& 7)) ||| (1 <<< ((row >>> 9) &&& 7))
-    r == 0b00011110
+  # Check if encoded row/column contains all numbers 1..4
+  defp is_line_ok(line) do
+    (
+      (1 <<< (line &&& 7)) ||| (1 <<< ((line >>> 3) &&& 7)) |||
+      (1 <<< ((line >>> 6) &&& 7)) ||| (1 <<< ((line >>> 9) &&& 7))
+    ) == 0b00011110
   end
 
   @doc """
@@ -456,6 +466,24 @@ defmodule Skyscrapers4x4 do
     c2 = (grid >>> (c * 3 + 24)) &&& 7
     c3 = (grid >>> (c * 3 + 36)) &&& 7
     (1 <<< c0) ||| (1 <<< c1) ||| (1 <<< c2) ||| (1 <<< c3)
+  end
+
+  # --------- extra functions, not for kata solution ---------
+  @doc """
+  Converts tuple with hints lists to string for logs
+  """
+  def hints_to_string(hints) do
+    Tuple.to_list(hints)
+    |> Enum.with_index()
+    |> Enum.map(fn {hint, index} -> "#{index}: [#{Enum.join(Enum.map(hint, fn h -> row_to_string(h) end), ", ")}]" end)
+    |> Enum.join(", ")
+  end
+
+  @doc """
+  Decode one row (4 numbers) from bit-encoded to string
+  """
+  def row_to_string(row) do
+    "#{row &&& 7} #{(row >>> 3) &&& 7} #{(row >>> 6) &&& 7} #{(row >>> 9) &&& 7}"
   end
 
 end

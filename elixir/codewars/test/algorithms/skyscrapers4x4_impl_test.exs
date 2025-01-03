@@ -6,6 +6,7 @@ defmodule Skyscrapers4x4ImplTest do
   use ExUnit.Case
 
   import Skyscrapers4x4
+  import Bitwise
 
   @moduletag :capture_log
 
@@ -20,30 +21,30 @@ defmodule Skyscrapers4x4ImplTest do
 
     perms_str = permutations |> Enum.map(fn r -> row_to_string(r) end) |> Enum.join("\n")
 
-    assert perms_str == "1, 2, 3, 4\n" <>
-      "2, 1, 3, 4\n" <>
-      "3, 1, 2, 4\n" <>
-      "1, 3, 2, 4\n" <>
-      "2, 3, 1, 4\n" <>
-      "3, 2, 1, 4\n" <>
-      "4, 2, 3, 1\n" <>
-      "2, 4, 3, 1\n" <>
-      "3, 4, 2, 1\n" <>
-      "4, 3, 2, 1\n" <>
-      "2, 3, 4, 1\n" <>
-      "3, 2, 4, 1\n" <>
-      "4, 1, 3, 2\n" <>
-      "1, 4, 3, 2\n" <>
-      "3, 4, 1, 2\n" <>
-      "4, 3, 1, 2\n" <>
-      "1, 3, 4, 2\n" <>
-      "3, 1, 4, 2\n" <>
-      "4, 1, 2, 3\n" <>
-      "1, 4, 2, 3\n" <>
-      "2, 4, 1, 3\n" <>
-      "4, 2, 1, 3\n" <>
-      "1, 2, 4, 3\n" <>
-      "2, 1, 4, 3"
+    assert perms_str == "1 2 3 4\n" <>
+      "2 1 3 4\n" <>
+      "3 1 2 4\n" <>
+      "1 3 2 4\n" <>
+      "2 3 1 4\n" <>
+      "3 2 1 4\n" <>
+      "4 2 3 1\n" <>
+      "2 4 3 1\n" <>
+      "3 4 2 1\n" <>
+      "4 3 2 1\n" <>
+      "2 3 4 1\n" <>
+      "3 2 4 1\n" <>
+      "4 1 3 2\n" <>
+      "1 4 3 2\n" <>
+      "3 4 1 2\n" <>
+      "4 3 1 2\n" <>
+      "1 3 4 2\n" <>
+      "3 1 4 2\n" <>
+      "4 1 2 3\n" <>
+      "1 4 2 3\n" <>
+      "2 4 1 3\n" <>
+      "4 2 1 3\n" <>
+      "1 2 4 3\n" <>
+      "2 1 4 3"
   end
 
   # check solution checker on grid from kata
@@ -300,5 +301,31 @@ defmodule Skyscrapers4x4ImplTest do
     ]
     assert result == expected
   end
+
+  @doc """
+  Encode source grid from tuple of tuples to integer
+  """
+  def encode_grid(source) do
+    encode_row(elem(source, 0)) |||
+      (encode_row(elem(source, 1)) <<< 12) |||
+      (encode_row(elem(source, 2)) <<< 24) |||
+      (encode_row(elem(source, 3)) <<< 36)
+  end
+
+  @doc """
+  Generate all permutations of 1, 2, 3, 4 and return bits-encoded values list.
+  """
+  def permutations() do
+    # table of permutations taken from Kotlin solution's tests
+    source = [
+      {1, 2, 3, 4}, {2, 1, 3, 4}, {3, 1, 2, 4}, {1, 3, 2, 4}, {2, 3, 1, 4}, {3, 2, 1, 4},
+      {4, 2, 3, 1}, {2, 4, 3, 1}, {3, 4, 2, 1}, {4, 3, 2, 1}, {2, 3, 4, 1}, {3, 2, 4, 1},
+      {4, 1, 3, 2}, {1, 4, 3, 2}, {3, 4, 1, 2}, {4, 3, 1, 2}, {1, 3, 4, 2}, {3, 1, 4, 2},
+      {4, 1, 2, 3}, {1, 4, 2, 3}, {2, 4, 1, 3}, {4, 2, 1, 3}, {1, 2, 4, 3}, {2, 1, 4, 3}
+    ]
+
+    Enum.map(source, fn p -> encode_row(p) end)
+  end
+
 
 end
