@@ -75,50 +75,86 @@ defmodule Skyscrapers4x4 do
     {rows_hints, columns_hints}
   end
 
-  # Returns map with keys by clues_to_key() to pairF_S and singleF_S permutations list.
-  # For 0,0 clue uses empty list.
-  defp make_permutations_table do
-    %{
-      # pairs
-      clues_to_key(1, 2) => encode_rows_list([{4, 1, 2, 3}, {4, 2, 1, 3}]),
-      clues_to_key(1, 3) => encode_rows_list([{4, 2, 3, 1}, {4, 1, 3, 2}, {4, 3, 1, 2}]),
-      clues_to_key(1, 4) => encode_rows_list([{4, 3, 2, 1}]),
+  @doc """
+  Returns map with keys by clues_to_key() to pairF_S and singleF_S permutations list.
+  For 0,0 clue uses empty list.
+  """
+  def make_permutations_table do
+    Enum.reduce(permutations(), %{clues_to_key(0, 0) => []}, fn perm, acc ->
+      left_clue = find_left_visibility(perm)
+      right_clue = find_right_visibility(perm)
+      key = clues_to_key(left_clue, right_clue)
+      eperm = encode_permutation(perm)
+      {_, acc} = Map.get_and_update(acc, key, fn perms_list -> update_perms_list(perms_list, eperm) end)
 
-      clues_to_key(2, 1) => encode_rows_list([{3, 1, 2, 4}, {3, 2, 1, 4}]),
-      clues_to_key(2, 2) => encode_rows_list([{3, 2, 4, 1}, {3, 4, 1, 2}, {3, 1, 4, 2}, {1, 4, 2, 3}, {2, 4, 1, 3}, {2, 1, 4, 3}]),
-      clues_to_key(2, 3) => encode_rows_list([{2, 4, 3, 1}, {3, 4, 2, 1}, {1, 4, 3, 2}]),
+      key = clues_to_key(left_clue, 0)
+      {_, acc} = Map.get_and_update(acc, key, fn perms_list -> update_perms_list(perms_list, eperm) end)
 
-      clues_to_key(3, 1) => encode_rows_list([{2, 1, 3, 4}, {1, 3, 2, 4}, {2, 3, 1, 4}]),
-      clues_to_key(3, 2) => encode_rows_list([{2, 3, 4, 1}, {1, 3, 4, 2}, {1, 2, 4, 3}]),
-      clues_to_key(4, 1) => encode_rows_list([{1, 2, 3, 4}]),
+      key = clues_to_key(0, right_clue)
+      {_, acc} = Map.get_and_update(acc, key, fn perms_list -> update_perms_list(perms_list, eperm) end)
 
-      # singles
-      clues_to_key(1, 0) => encode_rows_list([{4, 2, 3, 1}, {4, 3, 2, 1}, {4, 1, 3, 2}, {4, 3, 1, 2}, {4, 1, 2, 3}, {4, 2, 1, 3}]),
-      clues_to_key(2, 0) => encode_rows_list([{3, 1, 2, 4}, {3, 2, 1, 4}, {2, 4, 3, 1}, {3, 4, 2, 1}, {3, 2, 4, 1}, {1, 4, 3, 2},
-                                              {3, 4, 1, 2}, {3, 1, 4, 2}, {1, 4, 2, 3}, {2, 4, 1, 3}, {2, 1, 4, 3}]),
-      clues_to_key(3, 0) => encode_rows_list([{2, 1, 3, 4}, {1, 3, 2, 4}, {2, 3, 1, 4}, {2, 3, 4, 1}, {1, 3, 4, 2}, {1, 2, 4, 3}]),
-      clues_to_key(4, 0) => encode_rows_list([{1, 2, 3, 4}]),
+      acc
+    end)
+  end
 
-      clues_to_key(0, 1) => encode_rows_list([{1, 2, 3, 4}, {2, 1, 3, 4}, {3, 1, 2, 4}, {1, 3, 2, 4}, {2, 3, 1, 4}, {3, 2, 1, 4}]),
-      clues_to_key(0, 2) => encode_rows_list([{2, 3, 4, 1}, {3, 2, 4, 1}, {3, 4, 1, 2}, {1, 3, 4, 2}, {3, 1, 4, 2}, {4, 1, 2, 3},
-                                              {1, 4, 2, 3}, {2, 4, 1, 3}, {4, 2, 1, 3}, {1, 2, 4, 3}, {2, 1, 4, 3}]),
-      clues_to_key(0, 3) => encode_rows_list([{4, 2, 3, 1}, {2, 4, 3, 1}, {3, 4, 2, 1}, {4, 1, 3, 2}, {1, 4, 3, 2}, {4, 3, 1, 2}]),
-      clues_to_key(0, 4) => encode_rows_list([{4, 3, 2, 1}]),
-
-      # zero
-      clues_to_key(0, 0) => []
-    }
+  defp update_perms_list(perms_list, new) do
+    if perms_list != nil do
+      {perms_list, [new | perms_list]}
+    else
+      {perms_list, []}
+    end
   end
 
   #  Return encoded value of first and second clues numbers.
   #  Example: clues_to_key(1, 2) -> 0x12
-  defp clues_to_key(first, second) do
+  def clues_to_key(first, second) do
     (first <<< 4) ||| second
   end
 
-  defp encode_rows_list(rows) do
+  def encode_rows_list(rows) do
     Enum.map(rows, fn row -> encode_row(row) end )
   end
+
+  @doc """
+  Count number of visible skyscrapers (clue) in given permutation from left
+  """
+  def find_left_visibility(permutation) do
+    find_visibility(permutation, &List.foldl/3)
+  end
+
+  @doc """
+  Count number of visible skyscrapers (clue) in given permutation from right
+  """
+  def find_right_visibility(permutation) do
+    find_visibility(permutation, &List.foldr/3)
+  end
+
+  defp find_visibility(permutation, fold) do
+    {_, result} = fold.(permutation, {0, 0}, fn n, {max, visibility} ->
+      if n > max do
+        {n, visibility + 1}
+      else
+        {max, visibility}
+      end
+    end)
+
+    result
+  end
+
+  @doc """
+  Generate all permutations of 1, 2, 3, 4, return list of permutations as numbers lists
+  """
+  def permutations() do
+    # table of permutations taken from Kotlin solution's tests
+    [
+      [1, 2, 3, 4], [2, 1, 3, 4], [3, 1, 2, 4], [1, 3, 2, 4], [2, 3, 1, 4], [3, 2, 1, 4],
+      [4, 2, 3, 1], [2, 4, 3, 1], [3, 4, 2, 1], [4, 3, 2, 1], [2, 3, 4, 1], [3, 2, 4, 1],
+      [4, 1, 3, 2], [1, 4, 3, 2], [3, 4, 1, 2], [4, 3, 1, 2], [1, 3, 4, 2], [3, 1, 4, 2],
+      [4, 1, 2, 3], [1, 4, 2, 3], [2, 4, 1, 3], [4, 2, 1, 3], [1, 2, 4, 3], [2, 1, 4, 3]
+    ]
+  end
+
+
 
   @doc """
   Encode row tuple to integer.
@@ -132,6 +168,17 @@ defmodule Skyscrapers4x4 do
   def encode_row(row) do
     (elem(row, 3) <<< 9) ||| (elem(row, 2) <<< 6) ||| (elem(row, 1) <<< 3) ||| elem(row, 0)
   end
+
+  @doc """
+    Encode permutation (as list of numbers 1..4) to integer, see encode_row() for encoding details.
+  """
+  def encode_permutation(permutation) do
+    {_, line} = Enum.reduce(permutation, {0, 0}, fn n, {index, acc} ->
+      {index + 1, acc ||| ((n &&& 7) <<< (3 * index))}
+    end)
+    line
+  end
+
 
   @doc """
   Uses hints to prepare the first grid to start to find solution.

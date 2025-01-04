@@ -15,36 +15,35 @@ defmodule Skyscrapers4x4ImplTest do
   # Smoke test for permutations generator.
   # For 4x4 gird we may check all 24 values directly.
   test "permutations" do
-    permutations = permutations()
+    perms = permutations()
+    assert length(perms) == 24
 
-    assert length(permutations) == 24
-
-    perms_str = permutations |> Enum.map(fn r -> row_to_string(r) end) |> Enum.join("\n")
-
-    assert perms_str == "1 2 3 4\n" <>
-      "2 1 3 4\n" <>
-      "3 1 2 4\n" <>
-      "1 3 2 4\n" <>
-      "2 3 1 4\n" <>
-      "3 2 1 4\n" <>
-      "4 2 3 1\n" <>
-      "2 4 3 1\n" <>
-      "3 4 2 1\n" <>
-      "4 3 2 1\n" <>
-      "2 3 4 1\n" <>
-      "3 2 4 1\n" <>
-      "4 1 3 2\n" <>
-      "1 4 3 2\n" <>
-      "3 4 1 2\n" <>
-      "4 3 1 2\n" <>
-      "1 3 4 2\n" <>
-      "3 1 4 2\n" <>
-      "4 1 2 3\n" <>
-      "1 4 2 3\n" <>
-      "2 4 1 3\n" <>
-      "4 2 1 3\n" <>
-      "1 2 4 3\n" <>
-      "2 1 4 3"
+    assert perms == [
+      [1, 2, 3, 4],
+      [2, 1, 3, 4],
+      [3, 1, 2, 4],
+      [1, 3, 2, 4],
+      [2, 3, 1, 4],
+      [3, 2, 1, 4],
+      [4, 2, 3, 1],
+      [2, 4, 3, 1],
+      [3, 4, 2, 1],
+      [4, 3, 2, 1],
+      [2, 3, 4, 1],
+      [3, 2, 4, 1],
+      [4, 1, 3, 2],
+      [1, 4, 3, 2],
+      [3, 4, 1, 2],
+      [4, 3, 1, 2],
+      [1, 3, 4, 2],
+      [3, 1, 4, 2],
+      [4, 1, 2, 3],
+      [1, 4, 2, 3],
+      [2, 4, 1, 3],
+      [4, 2, 1, 3],
+      [1, 2, 4, 3],
+      [2, 1, 4, 3]
+    ]
   end
 
   # check solution checker on grid from kata
@@ -302,6 +301,87 @@ defmodule Skyscrapers4x4ImplTest do
     assert result == expected
   end
 
+  test "make permutations table" do
+    perms = make_permutations_table()
+    expected = %{
+      # pairs
+      clues_to_key(1, 2) => encode_rows_list([{4, 1, 2, 3}, {4, 2, 1, 3}]),
+      clues_to_key(1, 3) => encode_rows_list([{4, 2, 3, 1}, {4, 1, 3, 2}, {4, 3, 1, 2}]),
+      clues_to_key(1, 4) => encode_rows_list([{4, 3, 2, 1}]),
+
+      clues_to_key(2, 1) => encode_rows_list([{3, 1, 2, 4}, {3, 2, 1, 4}]),
+      clues_to_key(2, 2) => encode_rows_list([{3, 2, 4, 1}, {3, 4, 1, 2}, {3, 1, 4, 2}, {1, 4, 2, 3}, {2, 4, 1, 3}, {2, 1, 4, 3}]),
+      clues_to_key(2, 3) => encode_rows_list([{2, 4, 3, 1}, {3, 4, 2, 1}, {1, 4, 3, 2}]),
+
+      clues_to_key(3, 1) => encode_rows_list([{2, 1, 3, 4}, {1, 3, 2, 4}, {2, 3, 1, 4}]),
+      clues_to_key(3, 2) => encode_rows_list([{2, 3, 4, 1}, {1, 3, 4, 2}, {1, 2, 4, 3}]),
+      clues_to_key(4, 1) => encode_rows_list([{1, 2, 3, 4}]),
+
+      # singles
+      clues_to_key(1, 0) => encode_rows_list([{4, 2, 3, 1}, {4, 3, 2, 1}, {4, 1, 3, 2}, {4, 3, 1, 2}, {4, 1, 2, 3}, {4, 2, 1, 3}]),
+      clues_to_key(2, 0) => encode_rows_list([{3, 1, 2, 4}, {3, 2, 1, 4}, {2, 4, 3, 1}, {3, 4, 2, 1}, {3, 2, 4, 1}, {1, 4, 3, 2},
+        {3, 4, 1, 2}, {3, 1, 4, 2}, {1, 4, 2, 3}, {2, 4, 1, 3}, {2, 1, 4, 3}]),
+      clues_to_key(3, 0) => encode_rows_list([{2, 1, 3, 4}, {1, 3, 2, 4}, {2, 3, 1, 4}, {2, 3, 4, 1}, {1, 3, 4, 2}, {1, 2, 4, 3}]),
+      clues_to_key(4, 0) => encode_rows_list([{1, 2, 3, 4}]),
+
+      clues_to_key(0, 1) => encode_rows_list([{1, 2, 3, 4}, {2, 1, 3, 4}, {3, 1, 2, 4}, {1, 3, 2, 4}, {2, 3, 1, 4}, {3, 2, 1, 4}]),
+      clues_to_key(0, 2) => encode_rows_list([{2, 3, 4, 1}, {3, 2, 4, 1}, {3, 4, 1, 2}, {1, 3, 4, 2}, {3, 1, 4, 2}, {4, 1, 2, 3},
+        {1, 4, 2, 3}, {2, 4, 1, 3}, {4, 2, 1, 3}, {1, 2, 4, 3}, {2, 1, 4, 3}]),
+      clues_to_key(0, 3) => encode_rows_list([{4, 2, 3, 1}, {2, 4, 3, 1}, {3, 4, 2, 1}, {4, 1, 3, 2}, {1, 4, 3, 2}, {4, 3, 1, 2}]),
+      clues_to_key(0, 4) => encode_rows_list([{4, 3, 2, 1}]),
+
+      # zero
+      clues_to_key(0, 0) => []
+    }
+
+    perms_str = permutations_table_to_string(perms)
+    expected_str = permutations_table_to_string(expected)
+
+    IO.puts("PERMS:\n#{perms_str}")
+    IO.puts("EXP:\n#{expected_str}")
+
+    assert  perms_str == expected_str
+  end
+
+  defp permutations_table_to_string(pt) do
+    Enum.map(pt, fn {k, v} ->
+      "#{Integer.to_string((k >>> 4) &&& 0xF, 16)}#{Integer.to_string(k &&& 0xF, 16)}: " <>
+      Enum.map_join(v, ", ", fn p -> row_to_string(p) end)
+    end)
+    |> Enum.join("\n")
+  end
+
+  test "encode permutation" do
+    assert 0b100011010001 == encode_permutation([1, 2, 3, 4])
+    assert 0 == encode_permutation([])
+  end
+
+  test "find left visibility" do
+    left_1 =[ [4, 2, 3, 1], [4, 3, 2, 1], [4, 1, 3, 2], [4, 3, 1, 2], [4, 1, 2, 3], [4, 2, 1, 3]]
+    Enum.each(left_1, fn p -> assert find_left_visibility(p) == 1 end)
+
+    left_2 =  [
+      [3, 1, 2, 4], [3, 2, 1, 4], [2, 4, 3, 1], [3, 4, 2, 1], [3, 2, 4, 1], [1, 4, 3, 2],
+      [3, 4, 1, 2], [3, 1, 4, 2], [1, 4, 2, 3], [2, 4, 1, 3], [2, 1, 4, 3]
+    ]
+    Enum.each(left_2, fn p -> assert find_left_visibility(p) == 2 end)
+
+    left_3 = [[2, 1, 3, 4], [1, 3, 2, 4], [2, 3, 1, 4], [2, 3, 4, 1], [1, 3, 4, 2], [1, 2, 4, 3]]
+    Enum.each(left_3, fn p -> assert find_left_visibility(p) == 3 end)
+
+    assert find_left_visibility([1, 2, 3, 4]) == 4
+  end
+
+  test "find right visibility" do
+    assert find_right_visibility([4, 3, 2, 1]) == 4
+    assert find_right_visibility([4, 2, 3, 1]) == 3
+    assert find_right_visibility([2, 3, 4, 1]) == 2
+    assert find_right_visibility([1, 2, 3, 4]) == 1
+  end
+
+
+  #---------- additional functions ----------
+
   @doc """
   Encode source grid from tuple of tuples to integer
   """
@@ -311,21 +391,5 @@ defmodule Skyscrapers4x4ImplTest do
       (encode_row(elem(source, 2)) <<< 24) |||
       (encode_row(elem(source, 3)) <<< 36)
   end
-
-  @doc """
-  Generate all permutations of 1, 2, 3, 4 and return bits-encoded values list.
-  """
-  def permutations() do
-    # table of permutations taken from Kotlin solution's tests
-    source = [
-      {1, 2, 3, 4}, {2, 1, 3, 4}, {3, 1, 2, 4}, {1, 3, 2, 4}, {2, 3, 1, 4}, {3, 2, 1, 4},
-      {4, 2, 3, 1}, {2, 4, 3, 1}, {3, 4, 2, 1}, {4, 3, 2, 1}, {2, 3, 4, 1}, {3, 2, 4, 1},
-      {4, 1, 3, 2}, {1, 4, 3, 2}, {3, 4, 1, 2}, {4, 3, 1, 2}, {1, 3, 4, 2}, {3, 1, 4, 2},
-      {4, 1, 2, 3}, {1, 4, 2, 3}, {2, 4, 1, 3}, {4, 2, 1, 3}, {1, 2, 4, 3}, {2, 1, 4, 3}
-    ]
-
-    Enum.map(source, fn p -> encode_row(p) end)
-  end
-
 
 end
