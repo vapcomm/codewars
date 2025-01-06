@@ -82,10 +82,12 @@ defmodule Skyscrapers4x4ImplTest do
     grid = encode_grid(source_grid)
     result = grid_to_result(grid)
 
-    expected = [ [1, 3, 4, 2],
+    expected = [
+      [1, 3, 4, 2],
       [4, 2, 1, 3],
       [3, 4, 2, 1],
-      [2, 1, 3, 4] ]
+      [2, 1, 3, 4]
+    ]
     assert result == expected
   end
 
@@ -336,19 +338,7 @@ defmodule Skyscrapers4x4ImplTest do
 
     perms_str = permutations_table_to_string(perms)
     expected_str = permutations_table_to_string(expected)
-
-    IO.puts("PERMS:\n#{perms_str}")
-    IO.puts("EXP:\n#{expected_str}")
-
-    assert  perms_str == expected_str
-  end
-
-  defp permutations_table_to_string(pt) do
-    Enum.map(pt, fn {k, v} ->
-      "#{Integer.to_string((k >>> 4) &&& 0xF, 16)}#{Integer.to_string(k &&& 0xF, 16)}: " <>
-      Enum.map_join(v, ", ", fn p -> row_to_string(p) end)
-    end)
-    |> Enum.join("\n")
+    assert perms_str == expected_str
   end
 
   test "encode permutation" do
@@ -373,12 +363,106 @@ defmodule Skyscrapers4x4ImplTest do
   end
 
   test "find right visibility" do
+    right_1 = [[1, 2, 3, 4], [2, 1, 3, 4], [3, 1, 2, 4], [1, 3, 2, 4], [2, 3, 1, 4], [3, 2, 1, 4]]
+    Enum.each(right_1, fn p -> assert find_right_visibility(p) == 1 end)
+
+    right_2 = [[2, 3, 4, 1], [3, 2, 4, 1], [3, 4, 1, 2], [1, 3, 4, 2], [3, 1, 4, 2], [4, 1, 2, 3],
+      [1, 4, 2, 3], [2, 4, 1, 3], [4, 2, 1, 3], [1, 2, 4, 3], [2, 1, 4, 3]]
+    Enum.each(right_2, fn p -> assert find_right_visibility(p) == 2 end)
+
+    right_3 = [[4, 2, 3, 1], [2, 4, 3, 1], [3, 4, 2, 1], [4, 1, 3, 2], [1, 4, 3, 2], [4, 3, 1, 2]]
+    Enum.each(right_3, fn p -> assert find_right_visibility(p) == 3 end)
+
     assert find_right_visibility([4, 3, 2, 1]) == 4
-    assert find_right_visibility([4, 2, 3, 1]) == 3
-    assert find_right_visibility([2, 3, 4, 1]) == 2
-    assert find_right_visibility([1, 2, 3, 4]) == 1
   end
 
+  test "row is not suitable" do
+    grid = encode_grid({
+      {0, 0, 0, 0},
+      {1, 2, 4, 3},
+      {0, 0, 0, 0},
+      {0, 0, 0, 0}
+    })
+
+    # with this row 1 and 3 columns will get double 2 and 3, so this row is not suitable for given grid
+    row = encode_row({4, 2, 1, 3})
+
+    assert is_row_suitable(grid, row, 2) == false
+  end
+
+  test "unique columns good" do
+    good_grids = [
+      {
+        {0, 0, 0, 0},
+        {0, 0, 0, 0},
+        {0, 0, 0, 0},
+        {0, 0, 0, 0}
+      },
+      {
+        {1, 0, 0, 0},
+        {0, 1, 0, 0},
+        {0, 0, 1, 0},
+        {0, 0, 0, 1}
+      },
+      {
+        {1, 2, 3, 4},
+        {2, 1, 4, 3},
+        {3, 4, 1, 2},
+        {4, 3, 2, 1}
+      },
+    ]
+
+    Enum.each(good_grids, fn grid -> assert columns_have_unique_numbers(encode_grid(grid)) == true end )
+  end
+
+  test "unique columns bad" do
+    bad_grids = [
+      {
+        {0, 0, 0, 0},
+        {1, 0, 0, 0},
+        {1, 0, 0, 0},
+        {0, 0, 0, 0}
+      },
+      {
+        {1, 0, 0, 0},
+        {0, 2, 0, 0},
+        {0, 2, 1, 0},
+        {0, 0, 0, 1}
+      },
+      {
+        {1, 0, 0, 0},
+        {0, 2, 1, 0},
+        {0, 2, 1, 0},
+        {0, 0, 0, 1}
+      },
+      {
+        {1, 0, 0, 0},
+        {0, 2, 0, 0},
+        {0, 3, 1, 4},
+        {0, 0, 0, 4}
+      },
+      {
+        {1, 2, 3, 4},
+        {0, 1, 0, 0},
+        {0, 3, 1, 4},
+        {0, 0, 0, 1}
+      },
+      { # a real case in the old hints generator
+        {0, 0, 0, 0},
+        {1, 2, 4, 3},
+        {4, 2, 1, 3},
+        {0, 0, 0, 1}
+      },
+      {
+        {1, 2, 3, 4},
+        {2, 4, 4, 3},
+        {3, 4, 1, 2},
+        {4, 3, 2, 1}
+      },
+    ]
+
+    Enum.each(bad_grids, fn grid -> assert columns_have_unique_numbers(encode_grid(grid)) == false end )
+  end
 
   #---------- additional functions ----------
 
@@ -390,6 +474,35 @@ defmodule Skyscrapers4x4ImplTest do
       (encode_row(elem(source, 1)) <<< 12) |||
       (encode_row(elem(source, 2)) <<< 24) |||
       (encode_row(elem(source, 3)) <<< 36)
+  end
+
+  @doc """
+  Encode row tuple to integer.
+  One row 1, 2, 3, 4 is encoded in one integer, 3 bits for one number 1..4, the first number in a tuple
+  encoded in 3 least significant bits, and so on:
+  ```
+  109876543210  -- bits numbers
+    4  3  2  1  -- encoded numbers from one grid row (one permutation)
+  ```
+  """
+  def encode_row(row) do
+    (elem(row, 3) <<< 9) ||| (elem(row, 2) <<< 6) ||| (elem(row, 1) <<< 3) ||| elem(row, 0)
+  end
+
+  def encode_rows_list(rows) do
+    Enum.map(rows, fn row -> encode_row(row) end )
+  end
+
+  defp permutations_table_to_string(pt) do
+    Enum.map(pt, fn {k, v} ->
+      "#{Integer.to_string((k >>> 4) &&& 0xF, 16)}#{Integer.to_string(k &&& 0xF, 16)}: " <>
+      (
+        v |> Enum.map(fn p -> row_to_string(p) end)
+        |> Enum.sort()
+        |> Enum.join(", ")
+        )
+    end)
+    |> Enum.join("\n")
   end
 
 end
