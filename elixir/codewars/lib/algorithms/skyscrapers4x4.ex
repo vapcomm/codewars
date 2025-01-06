@@ -29,8 +29,8 @@ defmodule Skyscrapers4x4 do
   def solve(clues) do
     # generate hints from clues
     {rows_hints, columns_hints} = make_hints(clues)
-#    IO.puts("Rows hints: #{hints_to_string(rows_hints)}")
-#    IO.puts("Columns hints: #{hints_to_string(columns_hints)}")
+    IO.puts("Rows hints: #{hints_to_string(rows_hints)}")
+    IO.puts("Columns hints: #{hints_to_string(columns_hints)}")
 
     {result, solution} = make_solution(rows_hints, columns_hints)
     if result == :found do
@@ -177,74 +177,71 @@ defmodule Skyscrapers4x4 do
 
   defp add_row(rows_hints, columns_hints, grid, index) do
     if index >= 4 do
-      {if(is_solution(grid), do: :found, else: :no), grid}
+#      IO.puts("row_#{index}: STOP")
+      if is_solution(grid) do
+        {:found, grid}
+      else
+        find_solution(grid)
+      end
     else
       hints = elem(rows_hints, index)
-      {result, solution} = Enum.reduce_while(hints, {:no, grid}, fn row, {_, g} ->
-#       IO.puts("row_#{index}: #{row_to_string(row)}\n#{grid_to_string(g)}")
-
-        if is_row_suitable(g, row, index) do
-          new_grid = set_row(g, row, index)
-#          IO.puts("row_#{index} new\n#{grid_to_string(new_grid)}")
-
-          add_column(rows_hints, columns_hints, new_grid, index)
-          |> check_result(grid)
-        else
-          {:cont, {:no, grid}}
-        end
-      end)
-
-#      IO.puts("row_#{index} result: #{result}\n#{grid_to_string(solution)}")
-
-      if result == :found do
-        {:found, solution}
+      if Enum.empty?(hints) do
+        # go to column immediately
+#        IO.puts("row_#{index}: empty")
+        add_column(rows_hints, columns_hints, grid, index)
       else
-        # continue recursion only if hints was empty, otherwise stop and return :no
-        if Enum.empty?(hints) do
-          add_column(rows_hints, columns_hints, grid, index)
-        else
-          {:no, grid}
-        end
+        # try to find suitable hint for this row
+        Enum.reduce_while(hints, {:no, grid}, fn row, {_, g} ->
+#          IO.puts("row_#{index}: #{row_to_string(row)}\n#{grid_to_string(g)}")
+
+          if is_row_suitable(g, row, index) do
+            new_grid = set_row(g, row, index)
+#            IO.puts("row_#{index} new\n#{grid_to_string(new_grid)}")
+
+            add_column(rows_hints, columns_hints, new_grid, index)
+            |> check_result(grid)
+          else
+            {:cont, {:no, grid}}
+          end
+        end)
       end
     end
   end
 
   defp add_column(rows_hints, columns_hints, grid, index) do
     if index >= 4 do
-      {if(is_solution(grid), do: :found, else: :no), grid}
+#      IO.puts("column_#{index}: STOP")
+      if is_solution(grid) do
+        {:found, grid}
+      else
+        find_solution(grid)
+      end
     else
       hints = elem(columns_hints, index)
-      {result, solution} = Enum.reduce_while(hints, {:no, grid}, fn column, {_, g} ->
-#        IO.puts("column_#{index}: #{row_to_string(column)}\n#{grid_to_string(g)}")
-
-        if is_column_suitable(g, column, index) do
-          new_grid = set_column(g, column, index)
-#          IO.puts("column_#{index} new\n#{grid_to_string(new_grid)}")
-
-          if index >= 3 do
-            # whole grid is filled up with possible rows and columns,
-            # check solution or find one if there are zero cells left
-            find_solution(new_grid)
-          else
-            # continue to fill grid, go deeper on the next level
-            add_row(rows_hints, columns_hints, new_grid, index + 1)
-          end
-          |> check_result(grid)
-        else
-          {:cont, {:no, grid}}
-        end
-      end)
-
-#      IO.puts("column_#{index} result: #{result}\n#{grid_to_string(solution)}")
-
-      if result == :found do
-        {:found, solution}
+      if Enum.empty?(hints) do
+#        IO.puts("column_#{index}: empty")
+        add_row(rows_hints, columns_hints, grid, index + 1)
       else
-        if index < 3 and Enum.empty?(hints) do
-          add_row(rows_hints, columns_hints, grid, index + 1)
-        else
-          {:no, grid}
-        end
+        Enum.reduce_while(hints, {:no, grid}, fn column, {_, g} ->
+#          IO.puts("column_#{index}: #{row_to_string(column)}\n#{grid_to_string(g)}")
+
+          if is_column_suitable(g, column, index) do
+            new_grid = set_column(g, column, index)
+#            IO.puts("column_#{index} new\n#{grid_to_string(new_grid)}")
+
+            if index >= 3 do
+              # whole grid is filled up with possible rows and columns,
+              # check solution or find one if there are zero cells left
+              find_solution(new_grid)
+            else
+              # continue to fill grid, go deeper on the next level
+              add_row(rows_hints, columns_hints, new_grid, index + 1)
+            end
+            |> check_result(grid)
+          else
+            {:cont, {:no, grid}}
+          end
+        end)
       end
     end
   end
@@ -299,6 +296,8 @@ defmodule Skyscrapers4x4 do
   Return {:found, grid} if solution was found or {:no, grid} if solution can't be found for given grid.
   """
   def find_solution(grid) do
+#    IO.puts("find_solution:\n#{grid_to_string(grid)}")
+
     rc = find_first_zero(grid)
     if elem(rc, 0) < 0 or elem(rc, 1) < 0 do
       # no zeros, check grid for solution
