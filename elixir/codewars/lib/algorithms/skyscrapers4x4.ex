@@ -32,7 +32,7 @@ defmodule Skyscrapers4x4 do
 #    IO.puts("Rows hints: #{hints_to_string(rows_hints)}")
 #    IO.puts("Columns hints: #{hints_to_string(columns_hints)}")
 
-    {result, solution} = make_solution(rows_hints, columns_hints)
+    {_result, solution} = make_solution(rows_hints, columns_hints)
 #    if result == :found do
 #      IO.puts("solve: FOUND solution:\n#{grid_to_string(solution)}")
 #    else
@@ -140,14 +140,10 @@ defmodule Skyscrapers4x4 do
   @doc """
   Generate all permutations of 1, 2, 3, 4, return list of permutations as numbers lists
   """
-  def permutations() do
-    # table of permutations taken from Kotlin solution's tests
-    [
-      [1, 2, 3, 4], [2, 1, 3, 4], [3, 1, 2, 4], [1, 3, 2, 4], [2, 3, 1, 4], [3, 2, 1, 4],
-      [4, 2, 3, 1], [2, 4, 3, 1], [3, 4, 2, 1], [4, 3, 2, 1], [2, 3, 4, 1], [3, 2, 4, 1],
-      [4, 1, 3, 2], [1, 4, 3, 2], [3, 4, 1, 2], [4, 3, 1, 2], [1, 3, 4, 2], [3, 1, 4, 2],
-      [4, 1, 2, 3], [1, 4, 2, 3], [2, 4, 1, 3], [4, 2, 1, 3], [1, 2, 4, 3], [2, 1, 4, 3]
-    ]
+  def permutations(), do: permutations([1, 2, 3, 4])
+  def permutations([i]), do: [[i]]
+  def permutations(list) do
+    for h <- list, t <- permutations(list -- [h]), do: [h | t]
   end
 
   @doc """
@@ -513,12 +509,12 @@ defmodule Skyscrapers4x4 do
   end
 
   # Convert grid in integer to string
-  defp grid_to_string(grid) do
-    Enum.reduce(0..3, "", fn i, sr ->
-      sr <> "#{i}: " <>
-            Enum.reduce(0..3, "", fn j, sc -> sc <> Integer.to_string(get_cell(grid, i, j)) <> " " end)
-            <> "\n"
-    end)
-  end
+#  defp grid_to_string(grid) do
+#    Enum.reduce(0..3, "", fn i, sr ->
+#      sr <> "#{i}: " <>
+#            Enum.reduce(0..3, "", fn j, sc -> sc <> Integer.to_string(get_cell(grid, i, j)) <> " " end)
+#            <> "\n"
+#    end)
+#  end
 
 end

@@ -15,10 +15,10 @@ defmodule Skyscrapers4x4ImplTest do
   # Smoke test for permutations generator.
   # For 4x4 gird we may check all 24 values directly.
   test "permutations" do
-    perms = permutations()
+    perms = permutations() |> Enum.sort()
     assert length(perms) == 24
 
-    assert perms == [
+    expected = [
       [1, 2, 3, 4],
       [2, 1, 3, 4],
       [3, 1, 2, 4],
@@ -43,7 +43,9 @@ defmodule Skyscrapers4x4ImplTest do
       [4, 2, 1, 3],
       [1, 2, 4, 3],
       [2, 1, 4, 3]
-    ]
+    ] |> Enum.sort()
+
+    assert perms == expected
   end
 
   # check solution checker on grid from kata
