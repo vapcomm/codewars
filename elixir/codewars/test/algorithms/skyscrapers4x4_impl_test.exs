@@ -10,8 +10,6 @@ defmodule Skyscrapers4x4ImplTest do
 
   @moduletag :capture_log
 
-  doctest Skyscrapers4x4
-
   # Smoke test for permutations generator.
   # For 4x4 gird we may check all 24 values directly.
   test "permutations" do
@@ -46,6 +44,17 @@ defmodule Skyscrapers4x4ImplTest do
     ] |> Enum.sort()
 
     assert perms == expected
+  end
+
+  @doc """
+  on M1: 1M iterations: ~1600 ms
+  """
+  @tag :skip
+  test "permutations generator benchmark" do
+    {time, _} = :timer.tc(fn ->
+      assert Enum.each(1..1000000, fn _ -> permutations() end) == :ok
+    end)
+    IO.puts("Permutations generator benchmark execution time: #{time / 1000} ms")
   end
 
   # check solution checker on grid from kata

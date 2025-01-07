@@ -43,8 +43,13 @@ defmodule Skyscrapers4x4 do
   end
 
   @doc """
-  Return two tuples with permutations lists, first for rows, second for columns:
-  {{[],[],[],[]}, {[],[],[],[]}}
+  Return tuple with two tuples with permutations lists sorted by length with their row/column indexes,
+  first for rows, second for columns:
+  {{{[],i},{[],i},{[],i},{[],i}}, {{[],i},{[],i},{[],i},{[],i}}}
+  Example for row_hints in the first test:
+  ```
+   row_hints: {{[1620, 1676], 1}, {[794, 1305, 1809], 0}, {[675, 738, 1249], 2}, {[2138, 2250, 2201], 3}}
+  ```
   Clues in given list form the circle around a grid:
   ```
       0  1  2  3
@@ -59,18 +64,19 @@ defmodule Skyscrapers4x4 do
     cl = List.to_tuple(clues)
     perms = make_permutations_table()
 
-    rows_hints = {
+    rows_hints = [
       perms[clues_to_key(elem(cl, 15), elem(cl, 4))],
       perms[clues_to_key(elem(cl, 14), elem(cl, 5))],
       perms[clues_to_key(elem(cl, 13), elem(cl, 6))],
       perms[clues_to_key(elem(cl, 12), elem(cl, 7))]
-    }
-    columns_hints = {
+    ] |> Enum.with_index() |> Enum.sort_by(fn {p, _} -> length(p) end) |> List.to_tuple
+
+    columns_hints = [
       perms[clues_to_key(elem(cl, 0), elem(cl, 11))],
       perms[clues_to_key(elem(cl, 1), elem(cl, 10))],
       perms[clues_to_key(elem(cl, 2), elem(cl, 9))],
       perms[clues_to_key(elem(cl, 3), elem(cl, 8))]
-    }
+    ] |> Enum.with_index() |> Enum.sort_by(fn {p, _} -> length(p) end) |> List.to_tuple
 
     {rows_hints, columns_hints}
   end
@@ -163,8 +169,7 @@ defmodule Skyscrapers4x4 do
   end
 
   @doc """
-  Uses hints to prepare the first grid to start to find solution.
-  If there are enough hints start grid may be a final solution.
+  Uses hints to make grid and start to find solution.
   Return {:found, grid} if solution was found or {:no, grid}.
   """
   def make_solution(rows_hints, columns_hints) do
@@ -172,27 +177,28 @@ defmodule Skyscrapers4x4 do
   end
 
   defp add_row(rows_hints, columns_hints, grid, index) do
+    r = elem(elem(rows_hints, index), 1)
     if index >= 4 do
-#      IO.puts("row_#{index}: STOP")
+#      IO.puts("[#{index}] row_#{r}: STOP")
       if is_solution(grid) do
         {:found, grid}
       else
         find_solution(grid)
       end
     else
-      hints = elem(rows_hints, index)
+      hints = elem(elem(rows_hints, index), 0)
       if Enum.empty?(hints) do
         # go to column immediately
-#        IO.puts("row_#{index}: empty")
+#        IO.puts("[#{index}] row_#{r}: empty")
         add_column(rows_hints, columns_hints, grid, index)
       else
         # try to find suitable hint for this row
         Enum.reduce_while(hints, {:no, grid}, fn row, {_, g} ->
-#          IO.puts("row_#{index}: #{row_to_string(row)}\n#{grid_to_string(g)}")
+#          IO.puts("[#{index}] row_#{r}: #{row_to_string(row)}\n#{grid_to_string(g)}")
 
-          if is_row_suitable(g, row, index) do
-            new_grid = set_row(g, row, index)
-#            IO.puts("row_#{index} new\n#{grid_to_string(new_grid)}")
+          if is_row_suitable(g, row, r) do
+            new_grid = set_row(g, row, r)
+#            IO.puts("[#{index}] row_#{r}: new\n#{grid_to_string(new_grid)}")
 
             add_column(rows_hints, columns_hints, new_grid, index)
             |> check_result(grid)
@@ -205,25 +211,26 @@ defmodule Skyscrapers4x4 do
   end
 
   defp add_column(rows_hints, columns_hints, grid, index) do
+    c = elem(elem(columns_hints, index), 1)
     if index >= 4 do
-#      IO.puts("column_#{index}: STOP")
+#      IO.puts("[#{index}] column_#{c}: STOP")
       if is_solution(grid) do
         {:found, grid}
       else
         find_solution(grid)
       end
     else
-      hints = elem(columns_hints, index)
+      hints = elem(elem(columns_hints, index), 0)
       if Enum.empty?(hints) do
-#        IO.puts("column_#{index}: empty")
+#        IO.puts("[#{index}] column_#{c}: empty")
         add_row(rows_hints, columns_hints, grid, index + 1)
       else
         Enum.reduce_while(hints, {:no, grid}, fn column, {_, g} ->
-#          IO.puts("column_#{index}: #{row_to_string(column)}\n#{grid_to_string(g)}")
+#          IO.puts("[#{index}] column_#{c}: #{row_to_string(column)}\n#{grid_to_string(g)}")
 
-          if is_column_suitable(g, column, index) do
-            new_grid = set_column(g, column, index)
-#            IO.puts("column_#{index} new\n#{grid_to_string(new_grid)}")
+          if is_column_suitable(g, column, c) do
+            new_grid = set_column(g, column, c)
+#            IO.puts("[#{index}] column_#{c}: new\n#{grid_to_string(new_grid)}")
 
             if index >= 3 do
               # whole grid is filled up with possible rows and columns,
@@ -495,9 +502,10 @@ defmodule Skyscrapers4x4 do
   Converts tuple with hints lists to string for logs
   """
   def hints_to_string(hints) do
-    Tuple.to_list(hints)
+    hints
+    |> Tuple.to_list()
     |> Enum.with_index()
-    |> Enum.map(fn {hint, index} -> "#{index}: [#{Enum.join(Enum.map(hint, fn h -> row_to_string(h) end), ", ")}]" end)
+    |> Enum.map(fn {hint, index} -> "[#{index}] #{elem(hint, 1)}-[#{Enum.join(Enum.map(elem(hint, 0), fn h -> row_to_string(h) end), ", ")}]" end)
     |> Enum.join(", ")
   end
 

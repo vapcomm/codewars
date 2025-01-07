@@ -5,8 +5,6 @@ defmodule Skyscrapers4x4Test do
 
   @moduletag :capture_log
 
-  doctest Skyscrapers4x4
-
   test "it can solve 4x4 puzzle 1" do
     clues = [
       2, 2, 1, 3,
@@ -29,6 +27,7 @@ defmodule Skyscrapers4x4Test do
   @doc """
   For history:
   first solve() variant on M1: 1M iterations: ~6160 ms
+  optimized: on M1: ~8480 ms
   """
   @tag :skip
   test "benchmark 1" do
@@ -48,6 +47,7 @@ defmodule Skyscrapers4x4Test do
   @doc """
   For history:
   first solve() variant on M1: 1M iterations: ~12150 ms
+  optimized: on M1: ~9600 ms
   """
   @tag :skip
   test "benchmark 2" do
