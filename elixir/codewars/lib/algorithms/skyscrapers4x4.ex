@@ -29,15 +29,15 @@ defmodule Skyscrapers4x4 do
   def solve(clues) do
     # generate hints from clues
     {rows_hints, columns_hints} = make_hints(clues)
-    IO.puts("Rows hints: #{hints_to_string(rows_hints)}")
-    IO.puts("Columns hints: #{hints_to_string(columns_hints)}")
+#    IO.puts("Rows hints: #{hints_to_string(rows_hints)}")
+#    IO.puts("Columns hints: #{hints_to_string(columns_hints)}")
 
     {result, solution} = make_solution(rows_hints, columns_hints)
-    if result == :found do
-      IO.puts("solve: FOUND solution:\n#{grid_to_string(solution)}")
-    else
-      IO.puts("solve: NOT FOUND, result: #{result}, grid:\n#{grid_to_string(solution)}")
-    end
+#    if result == :found do
+#      IO.puts("solve: FOUND solution:\n#{grid_to_string(solution)}")
+#    else
+#      IO.puts("solve: NOT FOUND, result: #{result}, grid:\n#{grid_to_string(solution)}")
+#    end
 
     grid_to_result(solution)
   end

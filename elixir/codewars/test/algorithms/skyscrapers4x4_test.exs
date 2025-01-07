@@ -26,6 +26,44 @@ defmodule Skyscrapers4x4Test do
     assert actual == expected
   end
 
+  @doc """
+  For history:
+  first solve() variant on M1: 1M iterations: ~6160 ms
+  """
+  @tag :skip
+  test "benchmark 1" do
+    clues = [
+      2, 2, 1, 3,
+      2, 2, 3, 1,
+      1, 2, 2, 3,
+      3, 2, 1, 3
+    ]
+
+    {time, _} = :timer.tc(fn ->
+      assert Enum.each(1..1000000, fn _ -> Skyscrapers4x4.solve(clues) end) == :ok
+    end)
+    IO.puts("Benchmark 1 execution time: #{time / 1000} ms")
+  end
+
+  @doc """
+  For history:
+  first solve() variant on M1: 1M iterations: ~12150 ms
+  """
+  @tag :skip
+  test "benchmark 2" do
+    clues = [
+      0, 0, 1, 2,
+      0, 2, 0, 0,
+      0, 3, 0, 0,
+      0, 1, 0, 0
+    ]
+
+    {time, _} = :timer.tc(fn ->
+      assert Enum.each(1..1000000, fn _ -> Skyscrapers4x4.solve(clues) end) == :ok
+    end)
+    IO.puts("Benchmark 2 execution time: #{time / 1000} ms")
+  end
+
   test "it can solve 4x4 puzzle 2" do
     clues = [
       0, 0, 1, 2,

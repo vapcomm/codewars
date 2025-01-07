@@ -4,7 +4,7 @@ package online.vapcom.codewars.algorithms
 /**
  * #25 7×7 Skyscrapers
  *
- * We use universal algorithm for all this katas:
+ * We use universal algorithm for all these katas:
  *```
  * https://www.codewars.com/kata/4-by-4-skyscrapers/		-- 4 kyu
  * https://www.codewars.com/kata/6-by-6-skyscrapers/		-- 2 kyu
