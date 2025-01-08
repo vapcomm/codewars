@@ -411,7 +411,6 @@ defmodule Skyscrapers4x4 do
   @doc """
   Return tuple with row, column coordinates of first found zero in grid
   """
-  @spec find_first_zero(integer()) :: integer()
   def find_first_zero(grid) do
     column = find_zero_in_row(get_row(grid, 0))
     if column >= 0 do
