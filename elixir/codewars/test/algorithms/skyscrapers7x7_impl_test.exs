@@ -15,6 +15,10 @@ defmodule Skyscrapers7x7ImplTest do
     perms = permutations()
     assert length(perms) == 5040
 
+    # check arithmetic progression sum: (1+7)*7/2 = 28
+    # perms.forEachIndexed { index, p -> assertEquals(28, p.sum(), "Sum of permutation #$index should be 28")
+    Enum.each(perms, fn p -> assert Enum.sum(p) == 28 end)
+
     # check all permutations are unique
     set = MapSet.new(perms)
     assert MapSet.size(set) == 5040
