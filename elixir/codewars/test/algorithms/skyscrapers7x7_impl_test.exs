@@ -544,6 +544,4 @@ defmodule Skyscrapers7x7ImplTest do
     (elem(row, 3) <<< 12) ||| (elem(row, 2) <<< 8) ||| (elem(row, 1) <<< 4) ||| elem(row, 0)
   end
 
-
-
 end
