@@ -595,22 +595,22 @@ defmodule Skyscrapers7x7Fast do
     end)
   end
 
-  #--------- extra functions, not for kata solution ---------
-  @doc """
-  Converts tuple with hints lists to string for logs
-  """
-  def hints_to_string(hints) do
-    hints
-    |> Enum.with_index()
-    |> Enum.map(fn {row_hints, index} ->
-      len = length(row_hints)
-      if len > 10 do
-      "#{index}: #{len}-[skip]"
-      else
-      "#{index}: #{len}-[#{Enum.join(Enum.map(row_hints, fn h -> inspect(h) end), ", ")}]"
-      end
-    end)
-    |> Enum.join("\n")
-  end
+#  #--------- extra functions, not for kata solution ---------
+#  @doc """
+#  Converts tuple with hints lists to string for logs
+#  """
+#  def hints_to_string(hints) do
+#    hints
+#    |> Enum.with_index()
+#    |> Enum.map(fn {row_hints, index} ->
+#      len = length(row_hints)
+#      if len > 10 do
+#      "#{index}: #{len}-[skip]"
+#      else
+#      "#{index}: #{len}-[#{Enum.join(Enum.map(row_hints, fn h -> inspect(h) end), ", ")}]"
+#      end
+#    end)
+#    |> Enum.join("\n")
+#  end
 
 end
